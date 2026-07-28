@@ -1,0 +1,102 @@
+import { RETRY_COUNT, MIN_TEXT_LENGTH, PROFILE_TIMEOUT_MS } from '../shared/constants.js';
+import { profileCache } from './cache.js';
+import { extractProfilePageData } from './pageExtractor.js';
+
+/**
+ * Opens `url` in a background tab, scrapes it, retries on thin content, and caches the result.
+ *
+ * The tab is only closed once scraping has actually finished (success, error, or timeout) —
+ * closing it earlier means chrome.scripting.executeScript runs against a tab that no longer
+ * exists, which was a bug in the original implementation.
+ */
+export function fetchProfileData(url, retryCount = 0) {
+  return new Promise((resolve, reject) => {
+    const cached = profileCache.get(url);
+    if (cached) {
+      resolve(cached);
+      return;
+    }
+
+    chrome.tabs.create({ url, active: false }, (tab) => {
+      if (!tab.id) {
+        reject(new Error('Failed to create tab'));
+        return;
+      }
+
+      let updatedListener;
+      let timeoutId;
+      let settled = false;
+      let scraping = false;
+
+      const removeUpdatedListener = () => {
+        if (updatedListener) {
+          chrome.tabs.onUpdated.removeListener(updatedListener);
+          updatedListener = null;
+        }
+      };
+
+      const finish = (action) => {
+        if (settled) return;
+        settled = true;
+        removeUpdatedListener();
+        clearTimeout(timeoutId);
+        chrome.tabs.remove(tab.id, () => {
+          if (chrome.runtime.lastError) { /* tab already gone; ignore */ }
+        });
+        action();
+      };
+
+      const scrapeTab = () => {
+        if (scraping || settled) return;
+        scraping = true;
+        removeUpdatedListener();
+
+        setTimeout(() => {
+          chrome.scripting.executeScript(
+            { target: { tabId: tab.id }, func: extractProfilePageData },
+            (results) => {
+              if (chrome.runtime.lastError) {
+                finish(() => reject(chrome.runtime.lastError));
+                return;
+              }
+              if (!results || !results[0] || !results[0].result) {
+                finish(() => reject(new Error('No data extracted')));
+                return;
+              }
+
+              const data = results[0].result;
+              if (data.error === 'login') {
+                finish(() => reject(new Error('LinkedIn login page detected. Please ensure you are logged in.')));
+                return;
+              }
+              if (data.fullText.length < MIN_TEXT_LENGTH && retryCount < RETRY_COUNT) {
+                finish(() => {
+                  setTimeout(() => {
+                    fetchProfileData(url, retryCount + 1).then(resolve).catch(reject);
+                  }, 3000);
+                });
+                return;
+              }
+
+              profileCache.set(url, data);
+              finish(() => resolve(data));
+            }
+          );
+        }, 2000);
+      };
+
+      if (tab.status === 'complete') {
+        scrapeTab();
+      } else {
+        updatedListener = (tabId, info) => {
+          if (tabId === tab.id && info.status === 'complete') scrapeTab();
+        };
+        chrome.tabs.onUpdated.addListener(updatedListener);
+      }
+
+      timeoutId = setTimeout(() => {
+        finish(() => reject(new Error('Profile load timed out after 60 seconds.')));
+      }, PROFILE_TIMEOUT_MS);
+    });
+  });
+}
