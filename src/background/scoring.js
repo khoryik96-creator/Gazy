@@ -13,8 +13,12 @@ export function computeScore(profileData, scoringKeywords, booleanRule, countryF
   }
 
   if (countryFilter && countryFilter.trim()) {
+    const needle = countryFilter.toLowerCase().trim();
     const loc = (profileData.location || '').toLowerCase();
-    if (!loc.includes(countryFilter.toLowerCase().trim())) return 0;
+    // The dedicated location field is scraped from fragile LinkedIn selectors and
+    // is often empty; fall back to the full page text so a working country filter
+    // doesn't zero out every profile just because the location node wasn't found.
+    if (!loc.includes(needle) && !text.includes(needle)) return 0;
   }
 
   let keywordScore = 0;

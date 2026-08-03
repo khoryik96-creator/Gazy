@@ -15,7 +15,7 @@ export async function loadTemplateDropdown() {
 }
 
 async function saveTemplate() {
-  const name = prompt('Enter template name:');
+  const name = prompt('Enter template name:', dom.templateSelect.value || '');
   if (!name) return;
 
   const { templates = {} } = await getStorage(['templates']);
