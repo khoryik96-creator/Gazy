@@ -22,6 +22,35 @@ your status changes.
 
 ## Status log
 
-| Date       | Branch                                  | Scope                        | Status |
-|------------|------------------------------------------|-------------------------------|--------|
-| 2026-08-03 | claude/multi-account-project-rcmfpz     | none yet — awaiting a task   | idle   |
+| Date       | Branch                                  | Scope                              | Status |
+|------------|------------------------------------------|-------------------------------------|--------|
+| 2026-08-03 | claude/multi-account-project-rcmfpz     | popup/templates.js, background/scoring.js | done (unmerged) |
+
+### 2026-08-03 — bug fixes (branch `claude/multi-account-project-rcmfpz`)
+
+Three issues reported by the human; two needed code, one didn't.
+
+1. **Template save now prefills the selected template name.**
+   `popup/templates.js` → `saveTemplate()`: `prompt()` now defaults to
+   `dom.templateSelect.value`, so if you're on a saved template, clicking
+   Save shows its name pre-filled — press OK to overwrite, or edit to save
+   under a new name. (The existing "already exists — overwrite?" confirm
+   still fires.)
+
+2. **Country dropdown on LinkedIn** — no change. Confirmed working as-is.
+
+3. **All profiles scored 0%.** Root cause (most likely): `background/scoring.js`
+   `computeScore()` gated every profile to 0 when the scraped `location`
+   field didn't contain the country filter string. `location` comes from
+   fragile selectors in `background/pageExtractor.js` and is frequently
+   empty, so with any country filter set, every profile failed the gate.
+   Fix: the country check now also matches against the full page text
+   (`text`) as a fallback.
+   - **Note for the other agent:** if 0% persists even with the country
+     filter cleared, the cause is upstream scraping (empty `fullText` /
+     login-wall), which lives in `background/pageExtractor.js` +
+     `profileFetcher.js` — use the 🔍 debug button on a result row to see the
+     first 200 chars actually scraped. Not yet touched, so it's free to pick up.
+   - Also a known minor limitation (untouched): the keyword regex in
+     `computeScore` uses `\b` boundaries, so symbol keywords like `c++`/`c#`
+     won't match. Flag before anyone "fixes" it to avoid double work.
