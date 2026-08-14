@@ -3,6 +3,10 @@
 window.__gazy = window.__gazy || {};
 
 window.__gazy.extractor = (() => {
+  // Specific selectors are tried first. The last, broad `a[href*="/in/"]` fallback
+  // is scoped to a results container (see RESULT_ROOTS) rather than the whole
+  // document, so it can't scrape the nav bar, "People you may know" sidebar, the
+  // signed-in user's own menu, or the footer — all of which contain /in/ links.
   const SELECTORS = [
     'a[data-anonymize="profile-name"]',
     '.search-result__info a[href*="/in/"]',
@@ -10,16 +14,32 @@ window.__gazy.extractor = (() => {
     'a[href*="/in/"]:not([href*="search"]):not([href*="school"])',
   ];
 
+  // Containers that, when present, hold only the search results list.
+  const RESULT_ROOTS = [
+    '.search-results-container',
+    '.reusable-search__entity-result-list',
+    'main',
+  ];
+
   let extractedURLs = [];
   let isExtracting = false;
+
+  function resultRoot() {
+    for (const sel of RESULT_ROOTS) {
+      const el = document.querySelector(sel);
+      if (el) return el;
+    }
+    return document;
+  }
 
   function extractProfiles() {
     if (isExtracting) return extractedURLs;
     isExtracting = true;
 
+    const root = resultRoot();
     let profileLinks = [];
     for (const sel of SELECTORS) {
-      document.querySelectorAll(sel).forEach((link) => {
+      root.querySelectorAll(sel).forEach((link) => {
         const href = link.getAttribute('href');
         if (href && href.includes('/in/')) {
           const fullUrl = href.startsWith('https') ? href : 'https://www.linkedin.com' + href.split('?')[0];

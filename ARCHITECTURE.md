@@ -12,7 +12,14 @@ src/
   popup/        popup UI (type: module, loaded from popup.html)
   content/      content scripts injected into linkedin.com search pages
   shared/       pure logic used by more than one context
+test/           Node (node:test) unit tests for the pure modules
 ```
+
+Pure modules (`shared/*`, `background/scoring.js`) are unit-tested with the
+built-in Node test runner — `npm test` / `node --test`, no dependencies. When
+you change scoring, keyword extraction, or the Boolean parser, add or update a
+test in `test/`; these are the modules where a regression is invisible until a
+recruiter notices every profile scoring wrong.
 
 ## Module boundaries
 

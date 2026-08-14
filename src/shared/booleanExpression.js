@@ -62,11 +62,17 @@ class BooleanRuleParser {
 
   parseAnd() {
     let left = this.parseUnary();
-    while (this.peek()?.type === 'AND') {
-      this.next();
+    // `NOT` is accepted as a binary operator here (`A NOT B` == `A AND NOT B`),
+    // matching the recruiter/LinkedIn convention and this module's own doc
+    // example (`"React" AND "AWS" NOT "Intern"`). Prefix `NOT` (`NOT "x"`,
+    // `A AND NOT "x"`) is still handled by parseUnary.
+    while (this.peek()?.type === 'AND' || this.peek()?.type === 'NOT') {
+      const op = this.next().type;
       const right = this.parseUnary();
       const prev = left;
-      left = (text) => prev(text) && right(text);
+      left = op === 'NOT'
+        ? (text) => prev(text) && !right(text)
+        : (text) => prev(text) && right(text);
     }
     return left;
   }

@@ -1,5 +1,19 @@
 import { evaluateBoolean } from '../shared/booleanExpression.js';
 
+const REGEX_SPECIAL = /[.*+?^${}()|[\]\\]/g;
+
+/**
+ * Builds a case-insensitive regex that matches `term` as a whole token, using
+ * alphanumeric lookarounds instead of `\b`. Unlike `\b`, this matches keywords
+ * that begin or end with symbols — `c++`, `c#`, `.net`, `node.js` — which the
+ * old `\b…\b` wrapper silently failed to score (a `\b` can't sit between two
+ * non-word characters like `+ +`).
+ */
+export function boundedRegex(term, flags = 'gi') {
+  const escaped = term.replace(REGEX_SPECIAL, '\\$&');
+  return new RegExp('(?<![a-z0-9])' + escaped + '(?![a-z0-9])', flags);
+}
+
 /**
  * Scores a scraped profile against keywords/boolean rule/country filter.
  * Returns 0-100. Throws only on a malformed Boolean rule (surfaced to the UI).
@@ -18,7 +32,10 @@ export function computeScore(profileData, scoringKeywords, booleanRule, countryF
     // The dedicated location field is scraped from fragile LinkedIn selectors and
     // is often empty; fall back to the full page text so a working country filter
     // doesn't zero out every profile just because the location node wasn't found.
-    if (!loc.includes(needle) && !text.includes(needle)) return 0;
+    // Match as a bounded token, not a raw substring, so a short filter like "us"
+    // doesn't spuriously match "hoUSton" (and "in" doesn't match "berlIN").
+    const countryRe = boundedRegex(needle, 'i');
+    if (!countryRe.test(loc) && !countryRe.test(text)) return 0;
   }
 
   let keywordScore = 0;
@@ -26,8 +43,7 @@ export function computeScore(profileData, scoringKeywords, booleanRule, countryF
   if (uniqueKeywords.length > 0) {
     let matchCount = 0;
     uniqueKeywords.forEach((kw) => {
-      const regex = new RegExp('\\b' + kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
-      const matches = text.match(regex);
+      const matches = text.match(boundedRegex(kw));
       if (matches) matchCount += matches.length;
     });
     const maxPossible = uniqueKeywords.length * 3;

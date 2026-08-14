@@ -64,6 +64,33 @@ export function initScoreButton() {
   });
 }
 
+/**
+ * On popup open, ask the background whether a scoring run is in flight and, if
+ * so, restore the progress UI. Without this the whole checkpoint machinery in
+ * scoringEngine.js never surfaces — a popup reopened mid-run showed an idle
+ * "Score Profiles" button and a hidden progress bar even though scoring was
+ * still going.
+ */
+export function rehydrateScoringStatus() {
+  chrome.runtime.sendMessage({ type: MESSAGE.GET_SCORING_STATUS }, (status) => {
+    if (chrome.runtime.lastError || !status) return;
+
+    if (status.scores && Object.keys(status.scores).length > 0) {
+      state.profileScores = status.scores;
+      renderProfiles();
+    }
+
+    if (status.isRunning) {
+      enterScoringUI();
+      const total = status.total || 0;
+      const pct = total ? Math.round((status.currentIndex / total) * 100) : 0;
+      dom.progressBar.value = pct;
+      dom.progressLabel.textContent = pct + '%';
+      setStatus('⏳ Scoring ' + status.currentIndex + '/' + total + ' (' + pct + '%)...', 'info');
+    }
+  });
+}
+
 export function handleScoringMessage(message) {
   if (message.type === MESSAGE.SCORING_STARTED) {
     setStatus('⏳ Scoring ' + message.total + ' profiles in background...', 'info');

@@ -40,6 +40,9 @@ export async function restoreCheckpoint() {
     scoringState.scores = saved.scores || {};
     scoringState.failedCount = saved.failedCount || 0;
     scoringState.currentIndex = saved.currentIndex || 0;
+    // Keep the total accurate so a reopened popup shows "scored X of Y" from the
+    // checkpoint instead of "of 0" (getScoringStatus reports profiles.length).
+    scoringState.profiles = new Array(saved.total || 0).fill(null);
     scoringState.isRunning = false;
     await checkpoint();
   }
@@ -50,9 +53,15 @@ async function processBatch(batch, keywords, booleanRule, countryFilter) {
     try {
       const data = await fetchProfileData(url);
       const score = computeScore(data, keywords, booleanRule, countryFilter);
-      return { url, score, debug: data.fullText.slice(0, 200), success: true };
+      return {
+        url,
+        score,
+        location: data.location || '',
+        debug: (data.fullText || '').slice(0, 200),
+        success: true,
+      };
     } catch (e) {
-      return { url, score: 0, debug: 'ERROR: ' + e.message, success: false };
+      return { url, score: 0, location: '', debug: 'ERROR: ' + e.message, success: false };
     }
   }));
   return results;
@@ -85,8 +94,15 @@ export async function startScoring(data) {
     const results = await processBatch(batch, scoringState.keywords, scoringState.booleanRule, scoringState.countryFilter);
 
     for (const result of results) {
-      scoringState.scores[result.url] = result.score;
-      scoringState.scores[result.url + '_debug'] = result.debug;
+      // One structured entry per URL — score, scraped location (for CSV export),
+      // the first 200 chars scraped (debug button), and whether the scrape itself
+      // succeeded (so the UI can tell a real 0 from a failed fetch).
+      scoringState.scores[result.url] = {
+        score: result.score,
+        location: result.location,
+        debug: result.debug,
+        success: result.success,
+      };
       if (!result.success) scoringState.failedCount++;
     }
 
