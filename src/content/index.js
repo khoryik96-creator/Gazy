@@ -1,7 +1,5 @@
 // Bootstraps the content script: triggers auto-scroll+extraction on the LinkedIn
 // people-search results page, and answers on-demand extraction requests from the popup.
-console.log('🔍 LinkedIn Profile Finder content script loaded');
-
 const { extractor, autoscroll } = window.__gazy;
 
 if (window.location.href.includes('linkedin.com/search/results/people')) {
@@ -17,5 +15,3 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   return true;
 });
-
-console.log('✅ LinkedIn Profile Finder ready!');

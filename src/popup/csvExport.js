@@ -1,5 +1,6 @@
 import { state } from './state.js';
 import { setStatus } from './status.js';
+import { scoreEntry } from './scores.js';
 
 function csvField(value) {
   return '"' + String(value).replace(/"/g, '""') + '"';
@@ -12,13 +13,19 @@ export function exportCSV() {
   }
 
   const scores = state.profileScores;
-  const rows = [['URL', 'Name', 'Score', 'Location']];
+  const rows = [['URL', 'Name', 'Score', 'Location', 'Status']];
 
   state.extractedProfiles.forEach((url) => {
     const name = url.split('/in/')[1]?.split('/')[0] || 'Unknown';
-    const score = scores[url] !== undefined ? scores[url] : '—';
-    const location = scores[url + '_location'] || '';
-    rows.push([url, name, score, location]);
+    const entry = scoreEntry(scores, url);
+    let score = '—';
+    let status = 'not scored';
+    if (entry) {
+      if (entry.success === false) status = 'scrape failed';
+      else { score = entry.score; status = 'scored'; }
+    }
+    const location = entry?.location || '';
+    rows.push([url, name, score, location, status]);
   });
 
   // Real newlines (the original built literal "\\n" text instead of line breaks).

@@ -17,7 +17,11 @@ export function extractProfilePageData() {
     '.pv-text-details__left-panel .text-body-small, ' +
     '.pv-top-card--list .text-body-small, ' +
     '.pv-top-card--list .t-black--light, ' +
-    '[data-view-name="profile-profile"] .text-body-small'
+    '[data-view-name="profile-profile"] .text-body-small, ' +
+    // Newer top-card markup: the location sits in the details block, not the
+    // (bold, non-inline) headline line.
+    '.pv-text-details__left-panel .text-body-small:not(.inline), ' +
+    '.mt2 .text-body-small.inline.t-black--light'
   );
   if (locEl) location = locEl.innerText.trim();
   if (!location) {

@@ -2,6 +2,7 @@ import { dom } from './dom.js';
 import { state } from './state.js';
 import { setStorage } from './storage.js';
 import { setStatus } from './status.js';
+import { scoreEntry } from './scores.js';
 
 export function escapeHtml(str) {
   const div = document.createElement('div');
@@ -16,18 +17,27 @@ export function renderProfiles() {
   let html = '';
 
   state.extractedProfiles.forEach((url, i) => {
-    const score = scores[url];
-    if (hideZero && score === 0) return;
+    const entry = scoreEntry(scores, url);
+    const score = entry?.score;
+    // Only hide genuine zero matches, never failed scrapes — a failed fetch
+    // isn't evidence the candidate is a poor match.
+    if (hideZero && score === 0 && entry?.success !== false) return;
     visibleCount++;
 
     const rawName = url.split('/in/')[1]?.split('/')[0] || 'Profile ' + (i + 1);
     const safeName = escapeHtml(rawName);
-    const debugText = scores[url + '_debug'];
+    const debugText = entry?.debug;
     let scoreDisplay = '—';
-    if (score !== undefined && score !== null) {
-      scoreDisplay = score === 0
-        ? '<span style="color:#dc3545; font-weight:bold;">0% ❌</span>'
-        : '<span style="color:#28a745; font-weight:bold;">' + score + '%</span>';
+    if (entry) {
+      if (entry.success === false) {
+        // Scrape failed (login wall / timeout / error) — distinct from a real 0
+        // so the recruiter doesn't discard a candidate we simply couldn't read.
+        scoreDisplay = '<span style="color:#e08600; font-weight:bold;">⚠️ failed</span>';
+      } else if (score === 0) {
+        scoreDisplay = '<span style="color:#dc3545; font-weight:bold;">0% ❌</span>';
+      } else {
+        scoreDisplay = '<span style="color:#28a745; font-weight:bold;">' + score + '%</span>';
+      }
     }
     const debugBtn = debugText
       ? '<button class="btn-icon debug-btn" data-debug="' + encodeURIComponent(debugText) + '" style="cursor:pointer;font-size:12px;">🔍</button>'

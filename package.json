@@ -1,0 +1,10 @@
+{
+  "name": "gazy",
+  "version": "1.3.0",
+  "private": true,
+  "type": "module",
+  "description": "Chrome MV3 extension: extract, score, and export LinkedIn people-search results. This package.json exists only so Node can run the pure-logic tests as ES modules; the extension itself has no build step.",
+  "scripts": {
+    "test": "node --test"
+  }
+}

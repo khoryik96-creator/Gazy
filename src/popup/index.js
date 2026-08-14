@@ -6,8 +6,7 @@ import { initFormPersistence } from './formData.js';
 import { initTemplates } from './templates.js';
 import { initButtons } from './events.js';
 import { initMessageListener } from './messages.js';
-
-console.log('✅ popup.js loaded');
+import { rehydrateScoringStatus } from './scoringUI.js';
 
 async function init() {
   const { profiles, profileScores } = await getStorage(['profiles', 'profileScores']);
@@ -22,6 +21,8 @@ async function init() {
   initTemplates();
   initButtons();
   initMessageListener();
+  // If a scoring run is still going in the background, restore the progress UI.
+  rehydrateScoringStatus();
 }
 
 init();
