@@ -1,4 +1,13 @@
-import { RETRY_COUNT, MIN_TEXT_LENGTH, PROFILE_TIMEOUT_MS } from '../shared/constants.js';
+import {
+  RETRY_COUNT,
+  MIN_TEXT_LENGTH,
+  PROFILE_TIMEOUT_MS,
+  SCRAPE_DELAY_MIN_MS,
+  SCRAPE_DELAY_MAX_MS,
+  RETRY_DELAY_MIN_MS,
+  RETRY_DELAY_MAX_MS,
+} from '../shared/constants.js';
+import { randomDelayMs } from '../shared/timing.js';
 import { profileCache } from './cache.js';
 import { extractProfilePageData } from './pageExtractor.js';
 
@@ -51,6 +60,8 @@ export function fetchProfileData(url, retryCount = 0) {
         scraping = true;
         removeUpdatedListener();
 
+        // Randomised settle time before scraping, so a loaded tab isn't read
+        // after a constant delay every single time.
         setTimeout(() => {
           chrome.scripting.executeScript(
             { target: { tabId: tab.id }, func: extractProfilePageData },
@@ -73,7 +84,7 @@ export function fetchProfileData(url, retryCount = 0) {
                 finish(() => {
                   setTimeout(() => {
                     fetchProfileData(url, retryCount + 1).then(resolve).catch(reject);
-                  }, 3000);
+                  }, randomDelayMs(RETRY_DELAY_MIN_MS, RETRY_DELAY_MAX_MS));
                 });
                 return;
               }
@@ -82,7 +93,7 @@ export function fetchProfileData(url, retryCount = 0) {
               finish(() => resolve(data));
             }
           );
-        }, 2000);
+        }, randomDelayMs(SCRAPE_DELAY_MIN_MS, SCRAPE_DELAY_MAX_MS));
       };
 
       if (tab.status === 'complete') {

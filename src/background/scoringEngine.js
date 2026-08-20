@@ -1,4 +1,5 @@
-import { BATCH_SIZE, SCORING_DELAY_MS, MESSAGE } from '../shared/constants.js';
+import { BATCH_SIZE, SCORING_DELAY_MIN_MS, SCORING_DELAY_MAX_MS, MESSAGE } from '../shared/constants.js';
+import { randomDelayMs, sleep } from '../shared/timing.js';
 import { fetchProfileData } from './profileFetcher.js';
 import { computeScore } from './scoring.js';
 import { profileCache } from './cache.js';
@@ -127,7 +128,8 @@ export async function startScoring(data) {
     }).catch(() => {});
 
     if (completed < total && !scoringState.stopRequested) {
-      await new Promise((r) => setTimeout(r, SCORING_DELAY_MS));
+      // Randomised gap between profiles so views don't land on a fixed interval.
+      await sleep(randomDelayMs(SCORING_DELAY_MIN_MS, SCORING_DELAY_MAX_MS));
     }
   }
 
