@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluateBoolean, compileBooleanRule } from '../src/shared/booleanExpression.js';
+import { evaluateBoolean, compileBooleanRule } from '../dist/shared/booleanExpression.js';
 
 test('AND requires both terms', () => {
   assert.equal(evaluateBoolean('react and aws experience', '"React" AND "AWS"'), true);

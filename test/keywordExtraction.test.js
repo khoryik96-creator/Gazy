@@ -4,7 +4,7 @@ import {
   getScoringKeywords,
   extractKeywordsFromBoolean,
   filterStopwords,
-} from '../src/shared/keywordExtraction.js';
+} from '../dist/shared/keywordExtraction.js';
 
 test('manual keywords take precedence and drop stopwords', () => {
   assert.deepEqual(
