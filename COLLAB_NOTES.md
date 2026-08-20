@@ -25,7 +25,8 @@ your status changes.
 | Date       | Branch                                  | Scope                              | Status |
 |------------|------------------------------------------|-------------------------------------|--------|
 | 2026-08-03 | claude/multi-account-project-rcmfpz     | popup/templates.js, background/scoring.js | merged (PR #2) |
-| 2026-08-14 | claude/multi-account-project-rcmfpz     | scoring, scoringEngine, popup render/csv/scoringUI, content/extractor, pageExtractor, shared/booleanExpression, test/ | done (unmerged) |
+| 2026-08-14 | claude/multi-account-project-rcmfpz     | scoring, scoringEngine, popup render/csv/scoringUI, content/extractor, pageExtractor, shared/booleanExpression, test/ | merged (PR #3) |
+| 2026-08-20 | claude/multi-account-project-rcmfpz     | shared/constants, shared/timing (new), background/scoringEngine, background/profileFetcher, test/ | done (unmerged) |
 
 ### 2026-08-03 — bug fixes (branch `claude/multi-account-project-rcmfpz`)
 
@@ -99,5 +100,25 @@ Second pass, from the "what can be improved" review. All landed together;
   the selector changes are *best-effort and unverified* against live LinkedIn
   (no Chrome/LinkedIn in this env). If scores are still 0/failed, this is the
   place. Use the 🔍 debug button to see the first 200 chars scraped.
-- `profileFetcher.js` opens one real tab per profile serially — slow and
-  visible for large result sets; no rework attempted.
+
+### 2026-08-20 — anti-detection scraping pace (branch `claude/multi-account-project-rcmfpz`)
+
+The scraper used fixed delays end to end (2s scrape settle, 3s between batches,
+3-tab batches), i.e. a near-zero-variance, bursty cadence that's easy for
+LinkedIn's anti-automation to fingerprint. Reworked to randomised, sequential
+pacing:
+
+- New `shared/timing.js` — `randomDelayMs(min, max)` (inclusive, order-tolerant)
+  + `sleep(ms)`. Pure; covered by `test/timing.test.js`.
+- `shared/constants.js` — `BATCH_SIZE` 3 → **1** (no simultaneous-tab bursts);
+  replaced `SCORING_DELAY_MS` with a `SCORING_DELAY_MIN/MAX_MS` range (3–9s);
+  added `SCRAPE_DELAY_MIN/MAX_MS` (1.5–4s) and `RETRY_DELAY_MIN/MAX_MS` (3–6s).
+- `scoringEngine.js` between-profile gap and `profileFetcher.js` scrape-settle
+  and retry backoff all now draw from those ranges.
+
+Trade-off: **slower** (sequential + jitter — a 30-profile run goes from ~1 min
+to a few minutes). Caveats to remember: no timing change makes scraping
+*undetectable* (account-level volume still matters — keep runs modest), and this
+cuts against LinkedIn's automation ToS. Ranges are plain constants in
+`shared/constants.js` if anyone wants to tune them; a popup control to tune them
+live was discussed but not built.
