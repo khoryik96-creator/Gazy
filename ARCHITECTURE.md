@@ -1,50 +1,66 @@
 # Architecture
 
-Manifest V3 Chrome extension, no build step — the background service worker and
-popup use native ES modules (`import`/`export`); content scripts are classic
-scripts (Chrome doesn't support declaring `content_scripts` as modules), split
-into files loaded in order and namespaced on `window.__gazy`.
+Manifest V3 Chrome extension written in **TypeScript**. The background service
+worker and popup use native ES modules (`import`/`export`); content scripts are
+classic scripts (Chrome doesn't support declaring `content_scripts` as modules),
+split into files loaded in order and namespaced on `window.__gazy`.
+
+`tsc` compiles `src/**/*.ts` → `dist/`, and `scripts/build.mjs` copies the
+non-TS assets (`manifest.json`, `popup.html`, `popup.css`) alongside. **Chrome
+loads `dist/`, not the repo root.** Run `npm run build` after editing any `.ts`.
 
 ```
-manifest.json
+tsconfig.json     ESNext modules, bundler resolution, strict
+scripts/build.mjs tsc + copy manifest/html/css into dist/
 src/
-  background/   service worker (type: module)
-  popup/        popup UI (type: module, loaded from popup.html)
-  content/      content scripts injected into linkedin.com search pages
-  shared/       pure logic used by more than one context
-test/           Node (node:test) unit tests for the pure modules
+  manifest.json   paths are dist-relative to compiled JS (e.g. "background/index.js")
+  types/          global.d.ts — ambient window.__gazy for content scripts
+  background/     service worker (type: module)
+  popup/          popup UI (type: module, loaded from popup.html)
+  content/        content scripts injected into linkedin.com search pages
+  shared/         pure logic + types used by more than one context
+test/             Node (node:test) unit tests, run against compiled dist/
+dist/             build output — gitignored, this is the folder you Load Unpacked
 ```
 
-Pure modules (`shared/*`, `background/scoring.js`) are unit-tested with the
-built-in Node test runner — `npm test` / `node --test`, no dependencies. When
-you change scoring, keyword extraction, or the Boolean parser, add or update a
-test in `test/`; these are the modules where a regression is invisible until a
-recruiter notices every profile scoring wrong.
+**Import specifiers use `.js`, not `.ts`** (e.g. `import … from './scoring.js'`).
+That's the TypeScript ESM convention: the source path is `.ts`, but the *emitted*
+file is `.js`, and tsc leaves the specifier untouched so it resolves at runtime.
+
+**Import types with `import type { … }`** from `shared/types.ts` so the import is
+erased at compile time and never becomes a runtime dependency.
+
+Pure modules (`shared/*`, `background/scoring.ts`) are unit-tested with the
+built-in Node test runner — `npm test` builds first, then runs `node --test`
+against `dist/`. When you change scoring, keyword extraction, the Boolean parser,
+or the timing helpers, add or update a test in `test/`; these are the modules
+where a regression is invisible until a recruiter notices every profile scoring
+wrong.
 
 ## Module boundaries
 
-- **`shared/`** — framework-agnostic, no `chrome.*` calls. `constants.js`
-  (message types, tunables), `keywordExtraction.js` (stopwords, JD/boolean
-  keyword parsing), `booleanExpression.js` (the Boolean-filter parser).
+- **`shared/`** — framework-agnostic, no `chrome.*` calls. `constants.ts`
+  (message types, tunables), `keywordExtraction.ts` (stopwords, JD/boolean
+  keyword parsing), `booleanExpression.ts` (the Boolean-filter parser).
   Imported by both `background/` and `popup/` so scoring keyword logic can't
   drift between the two — it used to be copy-pasted in both files.
-- **`background/`** — one file per responsibility: `cache.js` (TTL cache),
-  `pageExtractor.js` (the function injected into scraped tabs — must stay a
+- **`background/`** — one file per responsibility: `cache.ts` (TTL cache),
+  `pageExtractor.ts` (the function injected into scraped tabs — must stay a
   pure, self-contained function since it's serialized by
-  `chrome.scripting.executeScript`), `profileFetcher.js` (open tab → scrape →
-  close tab), `scoring.js` (pure scoring math), `scoringEngine.js` (batch loop
-  + state + progress messages), `messaging.js` (the single
+  `chrome.scripting.executeScript`), `profileFetcher.ts` (open tab → scrape →
+  close tab), `scoring.ts` (pure scoring math), `scoringEngine.ts` (batch loop
+  + state + progress messages), `messaging.ts` (the single
   `chrome.runtime.onMessage` router — the only file that should call
   `addListener`).
-- **`popup/`** — `dom.js` is the only file that touches `document.getElementById`;
-  everything else imports element refs from it. `state.js` is the single
-  mutable source of truth for popup UI state. Each feature (`templates.js`,
-  `formData.js`, `theme.js`, `csvExport.js`, `searchUI.js`, `scoringUI.js`)
-  owns its own DOM wiring and storage keys. `messages.js` is the only
+- **`popup/`** — `dom.ts` is the only file that touches `document.getElementById`;
+  everything else imports element refs from it. `state.ts` is the single
+  mutable source of truth for popup UI state. Each feature (`templates.ts`,
+  `formData.ts`, `theme.ts`, `csvExport.ts`, `searchUI.ts`, `scoringUI.ts`)
+  owns its own DOM wiring and storage keys. `messages.ts` is the only
   `chrome.runtime.onMessage` listener, and just dispatches to the feature
   modules' `handle*Message` functions.
-- **`content/`** — `extractor.js` (DOM scraping + dedup), `autoscroll.js`
-  (scroll-to-load-more UI), `index.js` (bootstrap + message listener).
+- **`content/`** — `extractor.ts` (DOM scraping + dedup), `autoscroll.ts`
+  (scroll-to-load-more UI), `index.ts` (bootstrap + message listener).
 
 ## Adding a new feature without breaking existing ones
 
@@ -52,19 +68,19 @@ recruiter notices every profile scoring wrong.
    scraping, or shared pure logic) and give it its own file in that
    directory — don't bolt it onto an existing file unless it's genuinely the
    same responsibility.
-2. **New message types** go in `shared/constants.js`'s `MESSAGE` object, and
-   get one `case` in `background/messaging.js` and/or one `handle*Message`
-   function wired into `popup/messages.js`. Never add a second
+2. **New message types** go in `shared/constants.ts`'s `MESSAGE` object, and
+   get one `case` in `background/messaging.ts` and/or one `handle*Message`
+   function wired into `popup/messages.ts`. Never add a second
    `chrome.runtime.onMessage.addListener` — route through the existing ones.
-3. **New popup UI state** goes in `popup/state.js`, not a new global.
+3. **New popup UI state** goes in `popup/state.ts`, not a new global.
 4. **Anything used by both background and popup** (parsing, scoring math,
    constants) belongs in `shared/`, not duplicated.
-5. Keep `background/pageExtractor.js` free of imports/closures — it's
+5. Keep `background/pageExtractor.ts` free of imports/closures — it's
    serialized into the scraped page verbatim and can't reference outer scope.
 
 This isolation means, e.g., changing the CSV export format only touches
-`popup/csvExport.js`, and changing the scoring formula only touches
-`background/scoring.js` — neither can accidentally break search, templates,
+`popup/csvExport.ts`, and changing the scoring formula only touches
+`background/scoring.ts` — neither can accidentally break search, templates,
 or theming.
 
 ## Known bugs fixed during this restructure
@@ -74,8 +90,8 @@ or theming.
   disallows (`unsafe-eval` isn't permitted) and which also broke on any
   quoted keyword containing the literal substring `AND`/`OR`/`NOT` (e.g.
   `"Brand"`) due to blind string replacement. Replaced with a real tokenizer
-  + recursive-descent parser in `shared/booleanExpression.js`.
-- `profileFetcher.js` closed the scraped tab (`chrome.tabs.remove`) *before*
+  + recursive-descent parser in `shared/booleanExpression.ts`.
+- `profileFetcher.ts` closed the scraped tab (`chrome.tabs.remove`) *before*
   running the scraping script against it, so scraping almost always failed.
   The tab is now only closed after scraping finishes (success, error, or
   timeout).

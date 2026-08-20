@@ -20,13 +20,21 @@ your status changes.
    flag it to the human running you instead of proceeding — let them decide
    how to split the work.
 
+> ⚠️ **BIG CHANGE (2026-08-20): the repo is now TypeScript with a build step.**
+> Source is `src/**/*.ts`; Chrome loads the compiled **`dist/`** folder, not the
+> repo root. Run `npm install` then `npm run build` before loading. Edit `.ts`,
+> not `.js`. Import specifiers still use `.js` (TS ESM convention). Tests run via
+> `npm test` (builds first). `dist/` and `node_modules/` are gitignored. See the
+> 2026-08-20 TS-migration entry below and the rewritten `ARCHITECTURE.md`.
+
 ## Status log
 
 | Date       | Branch                                  | Scope                              | Status |
 |------------|------------------------------------------|-------------------------------------|--------|
 | 2026-08-03 | claude/multi-account-project-rcmfpz     | popup/templates.js, background/scoring.js | merged (PR #2) |
 | 2026-08-14 | claude/multi-account-project-rcmfpz     | scoring, scoringEngine, popup render/csv/scoringUI, content/extractor, pageExtractor, shared/booleanExpression, test/ | merged (PR #3) |
-| 2026-08-20 | claude/multi-account-project-rcmfpz     | shared/constants, shared/timing (new), background/scoringEngine, background/profileFetcher, test/ | done (unmerged) |
+| 2026-08-20 | claude/multi-account-project-rcmfpz     | shared/constants, shared/timing (new), background/scoringEngine, background/profileFetcher, test/ | merged (PR #4) |
+| 2026-08-20 | claude/multi-account-project-rcmfpz     | ENTIRE REPO — TypeScript migration (all src/*.ts, tsconfig, build) | done (unmerged) |
 
 ### 2026-08-03 — bug fixes (branch `claude/multi-account-project-rcmfpz`)
 
@@ -122,3 +130,42 @@ to a few minutes). Caveats to remember: no timing change makes scraping
 cuts against LinkedIn's automation ToS. Ranges are plain constants in
 `shared/constants.js` if anyone wants to tune them; a popup control to tune them
 live was discussed but not built.
+
+### 2026-08-20 — TypeScript migration (branch `claude/multi-account-project-rcmfpz`)
+
+Migrated the whole extension from plain JS ES modules to **TypeScript**. This is
+a repo-wide change and it removes the old "no build step" property.
+
+**What changed**
+- All 30 `src/**/*.js` → `.ts`, fully typed under `strict`. Domain types live in
+  `src/shared/types.ts` (`ProfilePageData`, `ScoreEntry`, `ScoresMap`,
+  `ScoringRequest`, `Template`, `RuntimeMessage`, `ScoringStatus`).
+- `tsconfig.json` — target ES2020, module ESNext, `moduleResolution: bundler`,
+  `rootDir: src`, `outDir: dist`, strict + `noUnused*`.
+- `scripts/build.mjs` — runs `tsc` then copies `manifest.json`, `popup.html`,
+  `popup.css` into `dist/`. Wired as `npm run build`.
+- `manifest.json` moved to `src/manifest.json` with **dist-relative** paths
+  (`background/index.js`, `popup/popup.html`, `content/*.js`).
+- `src/types/global.d.ts` — ambient `window.__gazy` typing for the content
+  scripts (which stay classic, non-module scripts — verified: `dist/content/*.js`
+  contain no `import`/`export`).
+- Tests import from **`dist/`** now (not `src/`); `npm test` builds first. 23
+  tests still green. Added `test/timing.test.js`.
+- `.gitignore` for `dist/` and `node_modules/`; committed `package-lock.json`.
+
+**Gotchas for the next agent**
+- Edit `.ts`, then `npm run build` — loading stale `dist/` is the #1 "my change
+  didn't show up" trap.
+- Import specifiers use `.js` even though files are `.ts` (e.g.
+  `import { computeScore } from './scoring.js'`). tsc leaves them as-is.
+- Import interfaces with `import type { … }` so they don't become runtime deps.
+- Content scripts must stay import/export-free or they'd become ES modules and
+  break injection. Communicate via `window.__gazy` (typed in `types/global.d.ts`).
+- `pageExtractor.ts`'s `extractProfilePageData` is still serialized into the page
+  by `executeScript` — keep it self-contained, no imports/closures.
+- `@types/chrome` here renames some members (e.g. no `chrome.tabs.TabChangeInfo`)
+  — `profileFetcher.ts` uses a structural `{ status?: string }` type instead.
+
+**Not done:** no TS migration of the `test/` files themselves (they're plain JS
+importing compiled JS — fine as is); no bundler/minifier (unnecessary for MV3
+native ESM); still no CI (env can't run it).

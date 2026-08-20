@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { randomDelayMs } from '../src/shared/timing.js';
+import { randomDelayMs } from '../dist/shared/timing.js';
 
 test('randomDelayMs stays within the inclusive range', () => {
   for (let i = 0; i < 1000; i++) {

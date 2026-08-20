@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeScore, boundedRegex } from '../src/background/scoring.js';
+import { computeScore, boundedRegex } from '../dist/background/scoring.js';
 
 const profile = (fullText, extra = {}) => ({ fullText, headline: '', location: '', ...extra });
 
