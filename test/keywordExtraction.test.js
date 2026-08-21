@@ -35,9 +35,17 @@ test('no input yields no keywords', () => {
   assert.deepEqual(getScoringKeywords({}), []);
 });
 
-test('extractKeywordsFromBoolean preserves case and symbol terms', () => {
+test('extractKeywordsFromBoolean captures quoted and bare terms, drops operators', () => {
   assert.deepEqual(extractKeywordsFromBoolean('"React" AND "Node.js"'), ['React', 'Node.js']);
-  assert.deepEqual(extractKeywordsFromBoolean('no quotes here'), []);
+  // Bare (unquoted) single-word terms are now captured; AND/OR/NOT/parens are not.
+  assert.deepEqual(extractKeywordsFromBoolean('REST AND (Mandarin OR Chinese) AND API'), [
+    'REST',
+    'Mandarin',
+    'Chinese',
+    'API',
+  ]);
+  // A rule that can't tokenize yields no keywords rather than throwing.
+  assert.deepEqual(extractKeywordsFromBoolean('%%%'), []);
 });
 
 test('filterStopwords removes short and common words', () => {

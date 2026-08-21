@@ -52,8 +52,11 @@
 
       <div class="input-group">
         <label for="booleanRule">Boolean Filter (Must Meet):</label>
-        <input type="text" id="booleanRule" placeholder='e.g., "React" AND "AWS" NOT "Intern"' />
-        <small class="hint">💡 Use AND, OR, NOT, parentheses. Keywords in quotes.</small>
+        <input type="text" id="booleanRule" placeholder="e.g., React AND (AWS OR GCP) NOT Intern" />
+        <small class="hint"
+          >💡 Use AND, OR, NOT (caps) and parentheses. Single words need no quotes; quote multi-word
+          phrases like "machine learning".</small
+        >
       </div>
 
       <div class="input-group">

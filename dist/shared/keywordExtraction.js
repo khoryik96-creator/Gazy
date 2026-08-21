@@ -1,3 +1,4 @@
+import { ruleTerms } from './booleanExpression.js';
 const STOP_WORDS = new Set([
     'the',
     'be',
@@ -136,10 +137,17 @@ export function extractKeywordsFromJD(jd) {
 export function extractKeywordsFromBoolean(rule) {
     if (!rule)
         return [];
-    const matches = rule.match(/(["'])([^"']*)\1/g);
-    if (!matches)
+    // All terms in the rule (quoted phrases AND bare single words), so scoring picks
+    // up e.g. `REST AND API` even when nothing is quoted. Best-effort: a rule that
+    // can't tokenize yields no keywords rather than throwing here.
+    try {
+        return ruleTerms(rule)
+            .map((t) => t.trim())
+            .filter((k) => k.length > 0);
+    }
+    catch {
         return [];
-    return matches.map((m) => m.slice(1, -1).trim()).filter((k) => k.length > 0);
+    }
 }
 /**
  * Single source of truth for deriving scoring keywords, shared by the popup
