@@ -26,7 +26,13 @@ window.__gazy.autoscroll = (() => {
     /** Auto-scrolls the results page to trigger LinkedIn's lazy loading, then extracts. */
     function run(extractProfiles) {
         let scrollCount = 0;
+        let extracted = false;
         const statusEl = createStatusBanner();
+        // The fallback timer is a safety net for when scrolling never "completes".
+        // Once the scroll loop finishes and extracts, cancel it — otherwise it fires
+        // too and extracts a second time (a duplicate EXTRACTION_ERROR when the search
+        // genuinely returned no results).
+        let fallbackTimer;
         const scrollInterval = setInterval(() => {
             scrollCount++;
             const progress = Math.min(Math.round((scrollCount / SCROLL_COUNT) * 100), 100);
@@ -36,21 +42,26 @@ window.__gazy.autoscroll = (() => {
             const scrollTop = window.scrollY + window.innerHeight;
             if (scrollTop >= scrollHeight - 100 || scrollCount >= SCROLL_COUNT) {
                 clearInterval(scrollInterval);
+                clearTimeout(fallbackTimer);
                 statusEl.textContent = '✅ Extracting profiles...';
                 setTimeout(() => {
+                    if (extracted)
+                        return;
+                    extracted = true;
                     const urls = extractProfiles();
                     statusEl.textContent = '✅ Found ' + urls.length + ' profiles!';
                     dismiss(statusEl);
                 }, 500);
             }
         }, SCROLL_DELAY);
-        setTimeout(() => {
-            if (window.__gazy.extractor.getExtractedURLs().length === 0) {
-                clearInterval(scrollInterval);
-                const urls = extractProfiles();
-                statusEl.textContent = '⚠️ Found ' + urls.length + ' profiles (partial)';
-                dismiss(statusEl);
-            }
+        fallbackTimer = setTimeout(() => {
+            if (extracted)
+                return;
+            extracted = true;
+            clearInterval(scrollInterval);
+            const urls = extractProfiles();
+            statusEl.textContent = '⚠️ Found ' + urls.length + ' profiles (partial)';
+            dismiss(statusEl);
         }, SCROLL_COUNT * SCROLL_DELAY + 5000);
     }
     return { run };

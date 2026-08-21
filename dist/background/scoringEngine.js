@@ -2,6 +2,7 @@ import { BATCH_SIZE, SCORING_DELAY_MIN_MS, SCORING_DELAY_MAX_MS, MESSAGE, } from
 import { randomDelayMs, sleep } from '../shared/timing.js';
 import { fetchProfileData } from './profileFetcher.js';
 import { computeScore } from './scoring.js';
+import { compileBooleanRule } from '../shared/booleanExpression.js';
 import { profileCache } from './cache.js';
 const SESSION_KEY = 'scoringCheckpoint';
 let scoringState = {
@@ -47,11 +48,11 @@ export async function restoreCheckpoint() {
         await checkpoint();
     }
 }
-async function processBatch(batch, keywords, booleanRule, countryFilter) {
+async function processBatch(batch, keywords, booleanMatches, countryFilter) {
     const results = await Promise.all(batch.map(async (url) => {
         try {
             const data = await fetchProfileData(url);
-            const score = computeScore(data, keywords, booleanRule, countryFilter);
+            const score = computeScore(data, keywords, booleanMatches, countryFilter);
             return {
                 url,
                 score,
@@ -75,6 +76,11 @@ async function processBatch(batch, keywords, booleanRule, countryFilter) {
 export async function startScoring(data) {
     if (scoringState.isRunning)
         return;
+    // Compile the Boolean rule ONCE for the whole run (not per profile). Done before
+    // any state is marked running, so an invalid rule rejects cleanly here and the
+    // popup shows the error — instead of every profile throwing mid-run. (The popup
+    // also pre-validates; this is the defence-in-depth backstop.)
+    const booleanMatches = compileBooleanRule(data.booleanRule);
     scoringState = {
         isRunning: true,
         profiles: data.profiles,
@@ -95,7 +101,7 @@ export async function startScoring(data) {
     let completed = 0;
     while (completed < total && !scoringState.stopRequested) {
         const batch = scoringState.profiles.slice(completed, completed + BATCH_SIZE);
-        const results = await processBatch(batch, scoringState.keywords, scoringState.booleanRule, scoringState.countryFilter);
+        const results = await processBatch(batch, scoringState.keywords, booleanMatches, scoringState.countryFilter);
         for (const result of results) {
             // One structured entry per URL — score, scraped location (for CSV export),
             // the first 200 chars scraped (debug button), and whether the scrape itself

@@ -1,4 +1,4 @@
-import { evaluateBoolean } from '../shared/booleanExpression.js';
+import { compileBooleanRule, type RuleEvaluator } from '../shared/booleanExpression.js';
 import type { ProfilePageData } from '../shared/types.js';
 
 const REGEX_SPECIAL = /[.*+?^${}()|[\]\\]/g;
@@ -22,15 +22,18 @@ export function boundedRegex(term: string, flags = 'gi'): RegExp {
 export function computeScore(
   profileData: ProfilePageData | null | undefined,
   scoringKeywords: string[],
-  booleanRule: string,
+  // A rule string (compiled here) or a pre-compiled evaluator. The scoring engine
+  // passes the compiled evaluator so the rule is parsed once per run, not once per
+  // profile; tests and ad-hoc callers can still pass a plain string.
+  booleanRule: string | RuleEvaluator,
   countryFilter: string,
 ): number {
   if (!profileData) return 0;
   const text = profileData.fullText.toLowerCase();
 
-  if (booleanRule && booleanRule.trim()) {
-    if (!evaluateBoolean(text, booleanRule)) return 0;
-  }
+  const booleanMatches: RuleEvaluator =
+    typeof booleanRule === 'function' ? booleanRule : compileBooleanRule(booleanRule);
+  if (!booleanMatches(text)) return 0;
 
   if (countryFilter && countryFilter.trim()) {
     const needle = countryFilter.toLowerCase().trim();
