@@ -22,9 +22,11 @@ const assets = [
   ['src/manifest.json', 'dist/manifest.json'],
   ['src/popup/popup.html', 'dist/popup/popup.html'],
   ['src/popup/popup.css', 'dist/popup/popup.css'],
+  ['src/icons', 'dist/icons'],
 ];
 for (const [from, to] of assets) {
-  cpSync(resolve(root, from), resolve(root, to));
+  // recursive lets directory assets (e.g. icons/) copy; harmless for single files.
+  cpSync(resolve(root, from), resolve(root, to), { recursive: true });
 }
 
 console.log('Build complete → dist/ (Load Unpacked this folder in Chrome).');

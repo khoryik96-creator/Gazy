@@ -9,20 +9,24 @@ import {
 test('manual keywords take precedence and drop stopwords', () => {
   assert.deepEqual(
     getScoringKeywords({ manual: 'java python', booleanRule: '"React"', jd: 'ignored' }),
-    ['java', 'python']
+    ['java', 'python'],
   );
   assert.deepEqual(getScoringKeywords({ manual: 'the java' }), ['java']);
 });
 
 test('falls back to boolean-quoted terms when no manual keywords', () => {
-  assert.deepEqual(
-    getScoringKeywords({ manual: '', booleanRule: '"React" AND "AWS"' }),
-    ['React', 'AWS']
-  );
+  assert.deepEqual(getScoringKeywords({ manual: '', booleanRule: '"React" AND "AWS"' }), [
+    'React',
+    'AWS',
+  ]);
 });
 
 test('falls back to the JD when no manual or boolean input', () => {
-  const kws = getScoringKeywords({ manual: '', booleanRule: '', jd: 'Senior Python developer, Python and cloud' });
+  const kws = getScoringKeywords({
+    manual: '',
+    booleanRule: '',
+    jd: 'Senior Python developer, Python and cloud',
+  });
   assert.ok(kws.length > 0);
   assert.ok(kws.includes('python'));
 });

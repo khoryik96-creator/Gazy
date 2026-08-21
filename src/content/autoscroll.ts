@@ -50,14 +50,17 @@ window.__gazy.autoscroll = (() => {
       }
     }, SCROLL_DELAY);
 
-    setTimeout(() => {
-      if (window.__gazy.extractor!.getExtractedURLs().length === 0) {
-        clearInterval(scrollInterval);
-        const urls = extractProfiles();
-        statusEl.textContent = '⚠️ Found ' + urls.length + ' profiles (partial)';
-        dismiss(statusEl);
-      }
-    }, SCROLL_COUNT * SCROLL_DELAY + 5000);
+    setTimeout(
+      () => {
+        if (window.__gazy.extractor!.getExtractedURLs().length === 0) {
+          clearInterval(scrollInterval);
+          const urls = extractProfiles();
+          statusEl.textContent = '⚠️ Found ' + urls.length + ' profiles (partial)';
+          dismiss(statusEl);
+        }
+      },
+      SCROLL_COUNT * SCROLL_DELAY + 5000,
+    );
   }
 
   return { run };

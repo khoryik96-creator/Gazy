@@ -1,5 +1,11 @@
 import { MESSAGE } from '../shared/constants.js';
-import { startScoring, stopScoring, getScoringStatus, clearCache, restoreCheckpoint } from './scoringEngine.js';
+import {
+  startScoring,
+  stopScoring,
+  getScoringStatus,
+  clearCache,
+  restoreCheckpoint,
+} from './scoringEngine.js';
 import type { RuntimeMessage, ScoringRequest } from '../shared/types.js';
 
 void restoreCheckpoint();

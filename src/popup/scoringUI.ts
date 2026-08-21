@@ -41,7 +41,10 @@ export function initScoreButton(): void {
 
     const keywords = getCurrentScoringKeywords();
     if (keywords.length === 0) {
-      setStatus('No keywords to score with. Please provide a JD, Boolean rule, or manual keywords.', 'error');
+      setStatus(
+        'No keywords to score with. Please provide a JD, Boolean rule, or manual keywords.',
+        'error',
+      );
       return;
     }
 
@@ -63,7 +66,7 @@ export function initScoreButton(): void {
         } else {
           setStatus('❌ Failed to start scoring: ' + (response?.error || 'unknown error'), 'error');
         }
-      }
+      },
     );
   });
 }
@@ -105,7 +108,8 @@ export function handleScoringMessage(message: RuntimeMessage): boolean {
   if (message.type === MESSAGE.SCORING_PROGRESS) {
     const currentIndex = message.currentIndex as number;
     const totalMsg = message.total as number;
-    const pct = (message.progress as number | undefined) ?? Math.round((currentIndex / totalMsg) * 100);
+    const pct =
+      (message.progress as number | undefined) ?? Math.round((currentIndex / totalMsg) * 100);
     dom.progressBar.value = pct;
     dom.progressLabel.textContent = pct + '%';
     if (message.eta) dom.etaLabel.textContent = 'ETA: ' + (message.eta as string);
@@ -118,7 +122,10 @@ export function handleScoringMessage(message: RuntimeMessage): boolean {
   if (message.type === MESSAGE.SCORING_COMPLETE) {
     state.profileScores = message.scores as ScoresMap;
     renderProfiles();
-    setStatus('✅ Scoring complete! (' + String(message.failedCount) + ' profiles failed)', 'success');
+    setStatus(
+      '✅ Scoring complete! (' + String(message.failedCount) + ' profiles failed)',
+      'success',
+    );
     exitScoringUI();
     void setStorage({ profileScores: message.scores });
     return true;

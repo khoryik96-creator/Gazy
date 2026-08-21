@@ -23,9 +23,11 @@ async function loadFormData(): Promise<void> {
 }
 
 export function initFormPersistence(): void {
-  [dom.jdInput, dom.keywordsInput, dom.booleanRuleInput, dom.countryFilterInput].forEach((input) => {
-    input.addEventListener('input', saveFormData);
-  });
+  [dom.jdInput, dom.keywordsInput, dom.booleanRuleInput, dom.countryFilterInput].forEach(
+    (input) => {
+      input.addEventListener('input', saveFormData);
+    },
+  );
   void loadFormData();
 }
 

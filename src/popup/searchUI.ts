@@ -32,7 +32,8 @@ async function runSearch(): Promise<void> {
     return;
   }
 
-  const searchURL = 'https://www.linkedin.com/search/results/people/?keywords=' + encodeURIComponent(query);
+  const searchURL =
+    'https://www.linkedin.com/search/results/people/?keywords=' + encodeURIComponent(query);
   await chrome.tabs.update(tab.id, { url: searchURL });
   setStatus('Waiting for profile extraction...', 'info');
 }

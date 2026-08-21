@@ -26,16 +26,20 @@ export function initButtons(): void {
   });
 
   dom.clearCacheBtn.addEventListener('click', () => {
-    if (!confirm('Clear all cached profile data and scores? This will not delete your templates.')) return;
-    chrome.runtime.sendMessage({ type: MESSAGE.CLEAR_CACHE }, (response?: { status?: string; error?: string }) => {
-      if (response && response.status === 'ok') {
-        state.profileScores = {};
-        void removeStorage(['profileScores', 'scoringProgress']);
-        renderProfiles();
-        setStatus('🧹 Cache cleared!', 'success');
-      } else {
-        setStatus('❌ Failed to clear cache: ' + (response?.error || 'unknown error'), 'error');
-      }
-    });
+    if (!confirm('Clear all cached profile data and scores? This will not delete your templates.'))
+      return;
+    chrome.runtime.sendMessage(
+      { type: MESSAGE.CLEAR_CACHE },
+      (response?: { status?: string; error?: string }) => {
+        if (response && response.status === 'ok') {
+          state.profileScores = {};
+          void removeStorage(['profileScores', 'scoringProgress']);
+          renderProfiles();
+          setStatus('🧹 Cache cleared!', 'success');
+        } else {
+          setStatus('❌ Failed to clear cache: ' + (response?.error || 'unknown error'), 'error');
+        }
+      },
+    );
   });
 }

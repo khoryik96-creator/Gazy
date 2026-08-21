@@ -29,13 +29,42 @@ your status changes.
 
 ## Status log
 
-| Date       | Branch                                  | Scope                              | Status |
-|------------|------------------------------------------|-------------------------------------|--------|
-| 2026-08-03 | claude/multi-account-project-rcmfpz     | popup/templates.js, background/scoring.js | merged (PR #2) |
-| 2026-08-14 | claude/multi-account-project-rcmfpz     | scoring, scoringEngine, popup render/csv/scoringUI, content/extractor, pageExtractor, shared/booleanExpression, test/ | merged (PR #3) |
-| 2026-08-20 | claude/multi-account-project-rcmfpz     | shared/constants, shared/timing (new), background/scoringEngine, background/profileFetcher, test/ | merged (PR #4) |
-| 2026-08-20 | claude/multi-account-project-rcmfpz     | ENTIRE REPO — TypeScript migration (all src/*.ts, tsconfig, build) | merged (PR #5) |
-| 2026-08-21 | claude/chrome-extension-architecture-cj7pul | tooling: ESLint + typescript-eslint, CI workflow, TS pin 6.0.x, lint-driven fixes across src/ | done (unmerged) |
+| Date       | Branch                                      | Scope                                                                                                                            | Status          |
+| ---------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| 2026-08-03 | claude/multi-account-project-rcmfpz         | popup/templates.js, background/scoring.js                                                                                        | merged (PR #2)  |
+| 2026-08-14 | claude/multi-account-project-rcmfpz         | scoring, scoringEngine, popup render/csv/scoringUI, content/extractor, pageExtractor, shared/booleanExpression, test/            | merged (PR #3)  |
+| 2026-08-20 | claude/multi-account-project-rcmfpz         | shared/constants, shared/timing (new), background/scoringEngine, background/profileFetcher, test/                                | merged (PR #4)  |
+| 2026-08-20 | claude/multi-account-project-rcmfpz         | ENTIRE REPO — TypeScript migration (all src/*.ts, tsconfig, build)                                                               | merged (PR #5)  |
+| 2026-08-21 | claude/chrome-extension-architecture-cj7pul | tooling: ESLint + typescript-eslint, CI workflow, TS pin 6.0.x, lint-driven fixes across src/                                    | done (unmerged) |
+| 2026-08-21 | claude/chrome-extension-architecture-cj7pul | tooling round 2: Prettier, Husky pre-push, Playwright e2e (e2e/), icons (src/icons + gen script), Dependabot, build.mjs copy fix | done (unmerged) |
+
+### 2026-08-21 — dev-experience tooling round 2 (branch `claude/chrome-extension-architecture-cj7pul`)
+
+Five additions on top of the lint/CI work, no behaviour change to the extension:
+
+1. **Prettier** (`.prettierrc.json`) + `eslint-config-prettier` (last in the flat
+   config so formatting is Prettier's alone). Scripts `format` / `format:check`;
+   `format:check` is now the first step of `check`. Whole repo reformatted once.
+2. **Husky `pre-push`** runs `npm run check` before any push. `prepare` script is
+   `husky || true` (won't break installs where husky is absent).
+3. **Playwright smoke test** in `e2e/popup.spec.js` — loads the built `dist/` as a
+   real extension, asserts the popup renders its controls with no JS error. Script
+   `test:e2e` (build + playwright). Kept OUT of the fast `check` gate; runs as its
+   own CI job. Locally needs a full Chromium via `PW_CHROMIUM_PATH` (headless_shell
+   can't load extensions). Plus `docs/QA_CHECKLIST.md` for the live-LinkedIn manual
+   pass that can't be automated.
+4. **Icons** generated from code — `scripts/gen-icons.mjs` (zero-dep PNG encoder)
+   writes `src/icons/icon{16,48,128}.png`; manifest now has `icons` +
+   `action.default_icon`; `build.mjs` copies `src/icons` → `dist/icons`. Script
+   `icons` regenerates. **Note:** `build.mjs`'s asset copy now passes
+   `{ recursive: true }` so directory assets copy (was file-only).
+5. **Dependabot** (`.github/dependabot.yml`) — weekly npm + github-actions updates,
+   lint/format tools grouped into one PR. This is what will surface typescript-eslint
+   gaining TS 7 support (→ un-pin TypeScript then).
+
+Cross-cutting files: `package.json` (scripts+devDeps), `eslint.config.js`,
+`scripts/build.mjs`, `src/manifest.json`, `.gitignore`, `.prettierignore`. src/
+itself only changed via the one-time Prettier reformat.
 
 ### 2026-08-21 — linting + CI (branch `claude/chrome-extension-architecture-cj7pul`)
 
@@ -110,7 +139,7 @@ Second pass, from the "what can be improved" review. All landed together;
 3. **Country filter no longer over-matches.** The 2026-08-03 fix (match country
    against full page text) made short filters false-positive: `us` matched
    "hoUSton". Now uses the same bounded-token match. **Trade-off to know:** a
-   2-letter code like `us` will *not* match the words "United States" — the
+   2-letter code like `us` will _not_ match the words "United States" — the
    filter expects the actual place token to appear. Acceptable for a heuristic.
 4. **In-progress scoring now survives a popup reopen.** The checkpoint machinery
    existed in `scoringEngine.js` but nothing consumed it. `popup/index.js` now
@@ -130,8 +159,9 @@ Second pass, from the "what can be improved" review. All landed together;
    `console.log`s; manifest renamed to "Gazy — LinkedIn Profile Finder", v1.3.0.
 
 **Still open / free to pick up (not touched):**
+
 - Upstream scraping reliability (`pageExtractor.js` + `profileFetcher.js`) —
-  the selector changes are *best-effort and unverified* against live LinkedIn
+  the selector changes are _best-effort and unverified_ against live LinkedIn
   (no Chrome/LinkedIn in this env). If scores are still 0/failed, this is the
   place. Use the 🔍 debug button to see the first 200 chars scraped.
 
@@ -143,7 +173,7 @@ LinkedIn's anti-automation to fingerprint. Reworked to randomised, sequential
 pacing:
 
 - New `shared/timing.js` — `randomDelayMs(min, max)` (inclusive, order-tolerant)
-  + `sleep(ms)`. Pure; covered by `test/timing.test.js`.
+  - `sleep(ms)`. Pure; covered by `test/timing.test.js`.
 - `shared/constants.js` — `BATCH_SIZE` 3 → **1** (no simultaneous-tab bursts);
   replaced `SCORING_DELAY_MS` with a `SCORING_DELAY_MIN/MAX_MS` range (3–9s);
   added `SCRAPE_DELAY_MIN/MAX_MS` (1.5–4s) and `RETRY_DELAY_MIN/MAX_MS` (3–6s).
@@ -152,7 +182,7 @@ pacing:
 
 Trade-off: **slower** (sequential + jitter — a 30-profile run goes from ~1 min
 to a few minutes). Caveats to remember: no timing change makes scraping
-*undetectable* (account-level volume still matters — keep runs modest), and this
+_undetectable_ (account-level volume still matters — keep runs modest), and this
 cuts against LinkedIn's automation ToS. Ranges are plain constants in
 `shared/constants.js` if anyone wants to tune them; a popup control to tune them
 live was discussed but not built.
@@ -163,6 +193,7 @@ Migrated the whole extension from plain JS ES modules to **TypeScript**. This is
 a repo-wide change and it removes the old "no build step" property.
 
 **What changed**
+
 - All 30 `src/**/*.js` → `.ts`, fully typed under `strict`. Domain types live in
   `src/shared/types.ts` (`ProfilePageData`, `ScoreEntry`, `ScoresMap`,
   `ScoringRequest`, `Template`, `RuntimeMessage`, `ScoringStatus`).
@@ -180,6 +211,7 @@ a repo-wide change and it removes the old "no build step" property.
 - `.gitignore` for `dist/` and `node_modules/`; committed `package-lock.json`.
 
 **Gotchas for the next agent**
+
 - Edit `.ts`, then `npm run build` — loading stale `dist/` is the #1 "my change
   didn't show up" trap.
 - Import specifiers use `.js` even though files are `.ts` (e.g.

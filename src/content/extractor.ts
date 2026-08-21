@@ -42,7 +42,9 @@ window.__gazy.extractor = (() => {
       root.querySelectorAll(sel).forEach((link) => {
         const href = link.getAttribute('href');
         if (href && href.includes('/in/')) {
-          const fullUrl = href.startsWith('https') ? href : 'https://www.linkedin.com' + href.split('?')[0];
+          const fullUrl = href.startsWith('https')
+            ? href
+            : 'https://www.linkedin.com' + href.split('?')[0];
           profileLinks.push(fullUrl);
         }
       });
@@ -52,7 +54,10 @@ window.__gazy.extractor = (() => {
     extractedURLs = [...new Set(profileLinks)];
 
     if (extractedURLs.length === 0) {
-      void chrome.runtime.sendMessage({ type: 'EXTRACTION_ERROR', data: 'No profiles found. Try refreshing or scrolling manually.' });
+      void chrome.runtime.sendMessage({
+        type: 'EXTRACTION_ERROR',
+        data: 'No profiles found. Try refreshing or scrolling manually.',
+      });
     } else {
       void chrome.runtime.sendMessage({ type: 'PROFILES_FOUND', data: extractedURLs });
     }

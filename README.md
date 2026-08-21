@@ -28,15 +28,23 @@ during development), then hit the reload icon on the extension card.
 
 ## Scripts
 
-| Command             | What it does                                            |
-|---------------------|---------------------------------------------------------|
-| `npm run build`     | Compile TS and copy assets into `dist/`                 |
-| `npm run typecheck` | Type-check only, no output (`tsc --noEmit`)             |
-| `npm run lint`      | Lint with ESLint + typescript-eslint (type-checked)     |
-| `npm run lint:fix`  | Lint and auto-fix what it can                           |
-| `npm run check`     | typecheck + lint + build + tests (the full CI gate)     |
-| `npm test`          | Alias for `npm run check`                               |
-| `npm run clean`     | Remove `dist/`                                          |
+| Command                | What it does                                             |
+| ---------------------- | -------------------------------------------------------- |
+| `npm run build`        | Compile TS and copy assets (+ icons) into `dist/`        |
+| `npm run icons`        | Regenerate the PNG icons from `scripts/gen-icons.mjs`    |
+| `npm run typecheck`    | Type-check only, no output (`tsc --noEmit`)              |
+| `npm run lint`         | Lint with ESLint + typescript-eslint (type-checked)      |
+| `npm run lint:fix`     | Lint and auto-fix what it can                            |
+| `npm run format`       | Format the repo with Prettier                            |
+| `npm run format:check` | Check formatting without writing                         |
+| `npm run check`        | format + typecheck + lint + build + unit tests (CI gate) |
+| `npm test`             | Alias for `npm run check`                                |
+| `npm run test:e2e`     | Build, then run the Playwright popup smoke tests         |
+| `npm run clean`        | Remove `dist/`                                           |
+
+Formatting is Prettier's job and linting is ESLint's; `eslint-config-prettier`
+keeps them from fighting. A Husky `pre-push` hook runs `npm run check` before any
+push, so failures surface locally, not just in CI.
 
 > **TypeScript version:** pinned to 6.0.x on purpose. typescript-eslint does not
 > yet support the TS 7 native compiler, so type-checked linting needs TS 6. Because
@@ -54,6 +62,12 @@ npm test
 ```
 
 These cover the Boolean parser, keyword derivation, scoring, and the randomised
-scraping delays — the places where a subtle change silently breaks matching. Run
-them before pushing; the rest of the extension needs Chrome + a logged-in
-LinkedIn session to exercise.
+scraping delays — the places where a subtle change silently breaks matching.
+
+There is also a **Playwright smoke test** (`npm run test:e2e`) that loads the built
+extension in a real Chromium and checks the popup renders its controls without a JS
+error. Locally, point it at a full Chromium: `PW_CHROMIUM_PATH=/path/to/chrome`.
+
+Neither test can exercise the actual LinkedIn scraping — that needs a logged-in
+session in a real browser. See [`docs/QA_CHECKLIST.md`](./docs/QA_CHECKLIST.md) for
+the manual pass to run before shipping scraping/scoring changes.

@@ -9,6 +9,7 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import globals from 'globals';
+import prettier from 'eslint-config-prettier';
 
 export default tseslint.config(
   {
@@ -51,11 +52,16 @@ export default tseslint.config(
   },
 
   {
-    // Build/tooling scripts: Node ESM, not part of the TS program.
-    files: ['scripts/**/*.mjs', 'eslint.config.js'],
+    // Build/tooling scripts + Playwright e2e specs: Node ESM, not part of the
+    // TS program, so lint them without type info.
+    files: ['scripts/**/*.mjs', 'eslint.config.js', 'playwright.config.js', 'e2e/**/*.js'],
     ...tseslint.configs.disableTypeChecked,
     languageOptions: {
       globals: { ...globals.node },
     },
   },
+
+  // Must come last: turns off ESLint rules that would conflict with Prettier,
+  // so formatting is Prettier's job alone and the two never fight.
+  prettier,
 );

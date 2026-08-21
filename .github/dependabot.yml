@@ -1,0 +1,26 @@
+version: 2
+updates:
+  # npm devDependencies (this project ships no runtime deps). Watch for updates
+  # weekly — notably typescript-eslint, which will unblock moving back to
+  # TypeScript 7 once it supports the native compiler.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # One PR for the lint/format toolchain instead of a stream of separate ones.
+      dev-tooling:
+        patterns:
+          - eslint
+          - '@eslint/*'
+          - typescript-eslint
+          - prettier
+          - eslint-config-prettier
+          - husky
+
+  # Keep the GitHub Actions used in CI current.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
