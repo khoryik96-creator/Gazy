@@ -9,22 +9,33 @@ JavaScript in `dist/`, not the `src/` TypeScript.
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for the module layout and conventions
 to follow when adding new features.
 
-## Build & load it
+## Install (no build required)
 
-```
-npm install      # one-time: TypeScript + chrome type defs
-npm run build    # compiles src/ (TypeScript) → dist/ (loadable extension)
-```
+A prebuilt copy lives in **`dist/`**, so you don't need Node or a build step just
+to use the extension:
 
-Then in Chrome:
-
-1. `chrome://extensions` → enable Developer Mode → **Load unpacked** → select
-   the **`dist/`** folder (it contains the compiled `manifest.json`).
-2. Open the popup on `linkedin.com`, paste a job description or keywords, and
+1. Download this repository (green **Code → Download ZIP**) and unzip it.
+2. `chrome://extensions` → enable **Developer mode** → **Load unpacked**.
+3. Select the **`dist/`** folder inside the unzipped project (the one containing
+   `manifest.json`) — **not** the top-level project folder, which has no manifest.
+4. Open the popup on `linkedin.com`, paste a job description or keywords, and
    click **Search LinkedIn**.
 
-Re-run `npm run build` after changing any `src/**/*.ts` (or use `npx tsc --watch`
-during development), then hit the reload icon on the extension card.
+> Loading the top-level folder gives "Manifest file is missing or unreadable" —
+> pick the `dist/` subfolder.
+
+## Develop (build from source)
+
+Written in **TypeScript**; Chrome loads the compiled JS in `dist/`, not `src/`.
+
+```
+npm install --legacy-peer-deps   # one-time (see TypeScript note below for the flag)
+npm run build                    # compiles src/ (TypeScript) → dist/
+```
+
+Re-run `npm run build` after changing any `src/**/*.ts` (or `npx tsc --watch`),
+then hit the reload icon on the extension card. **Commit the rebuilt `dist/`** so
+the no-build install above stays current.
 
 ## Scripts
 

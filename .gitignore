@@ -1,5 +1,8 @@
 node_modules/
-dist/
 *.log
 test-results/
 playwright-report/
+
+# NOTE: dist/ is intentionally NOT ignored — a prebuilt copy is committed so the
+# extension can be loaded without a Node/build step (see README "Install").
+# Rebuild it with `npm run build` and commit the result when src/ changes.
