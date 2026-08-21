@@ -1,0 +1,107 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🔍 Profile Finder</h1>
+        <button id="themeToggle" class="btn-icon" title="Toggle dark mode">🌙</button>
+      </div>
+
+      <div class="template-section">
+        <select id="templateSelect" class="template-select">
+          <option value="">-- Load Template --</option>
+        </select>
+        <div class="template-actions">
+          <button
+            id="saveTemplateBtn"
+            class="btn-small template-save"
+            title="Save current inputs as template"
+          >
+            💾 Save
+          </button>
+          <button
+            id="loadTemplateBtn"
+            class="btn-small template-load"
+            title="Load selected template"
+          >
+            📂 Load
+          </button>
+          <button
+            id="deleteTemplateBtn"
+            class="btn-small template-delete"
+            title="Delete selected template"
+          >
+            🗑️ Delete
+          </button>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label for="jdInput">Paste Job Description:</label>
+        <textarea id="jdInput" rows="4" placeholder="Paste the job description here..."></textarea>
+      </div>
+
+      <div class="input-group">
+        <label for="keywordsInput">Or enter keywords manually:</label>
+        <input type="text" id="keywordsInput" placeholder="e.g., React AWS Product Manager" />
+      </div>
+
+      <div class="input-group">
+        <label for="booleanRule">Boolean Filter (Must Meet):</label>
+        <input type="text" id="booleanRule" placeholder='e.g., "React" AND "AWS" NOT "Intern"' />
+        <small class="hint">💡 Use AND, OR, NOT, parentheses. Keywords in quotes.</small>
+      </div>
+
+      <div class="input-group">
+        <label for="countryFilter">Country / Location (Must Contain):</label>
+        <input type="text" id="countryFilter" placeholder="e.g., United States, UK, India" />
+        <small class="hint"
+          >🌍 Leave empty to skip. Profiles not containing this text get 0%.</small
+        >
+      </div>
+
+      <div class="button-group">
+        <button id="searchBtn" class="btn-primary">🔎 Search LinkedIn</button>
+        <button id="clearBtn" class="btn-secondary">Clear</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="results-header">
+        <span id="profileCount">0 profiles found</span>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap">
+          <button id="scoreBtn" class="btn-small score">⭐ Score Profiles</button>
+          <button id="exportBtn" class="btn-small">📊 Export CSV</button>
+          <button id="copyAllBtn" class="btn-small">📋 Copy All</button>
+        </div>
+      </div>
+
+      <div class="controls">
+        <label><input type="checkbox" id="hideZero" /> Hide 0%</label>
+        <button id="clearCacheBtn" class="btn-small" title="Clear cached profile data">
+          🧹 Clear Cache
+        </button>
+      </div>
+
+      <div id="progressArea" style="display: none">
+        <progress id="progressBar" value="0" max="100"></progress>
+        <span id="progressLabel">0%</span>
+        <span id="etaLabel">ETA: --</span>
+      </div>
+
+      <div id="resultsContainer" class="results-container">
+        <div class="empty-state">
+          <p>No profiles extracted yet.</p>
+          <p class="hint">Search for a JD to get started.</p>
+        </div>
+      </div>
+
+      <div class="footer"><span class="status" id="status">Ready</span></div>
+    </div>
+    <script type="module" src="index.js"></script>
+  </body>
+</html>

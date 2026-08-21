@@ -4,6 +4,7 @@ import { setStatus } from './status.js';
 import { renderProfiles } from './render.js';
 import { getCurrentScoringKeywords } from './searchQuery.js';
 import { MESSAGE } from '../shared/constants.js';
+import { compileBooleanRule } from '../shared/booleanExpression.js';
 import { setStorage } from './storage.js';
 import type { RuntimeMessage, ScoringStatus, ScoresMap } from '../shared/types.js';
 
@@ -48,13 +49,28 @@ export function initScoreButton(): void {
       return;
     }
 
+    // Validate the Boolean rule ONCE up front. Without this, an invalid rule
+    // (e.g. unquoted `React AND AWS`, a trailing `AND`, or unbalanced parens)
+    // makes computeScore throw for every profile, so the whole run shows
+    // "⚠️ failed" with a cryptic per-row error and no hint that the rule is at
+    // fault. Surface a clear message and don't start instead.
+    const booleanRule = dom.booleanRuleInput.value;
+    if (booleanRule.trim()) {
+      try {
+        compileBooleanRule(booleanRule);
+      } catch (e) {
+        setStatus('❌ Invalid Boolean rule: ' + (e as Error).message, 'error');
+        return;
+      }
+    }
+
     chrome.runtime.sendMessage(
       {
         type: MESSAGE.START_SCORING,
         data: {
           profiles: state.extractedProfiles,
           keywords,
-          booleanRule: dom.booleanRuleInput.value,
+          booleanRule,
           countryFilter: dom.countryFilterInput.value,
         },
       },

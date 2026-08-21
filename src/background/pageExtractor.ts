@@ -5,10 +5,16 @@ import type { ProfilePageData } from '../shared/types.js';
  * Must be fully self-contained (serialized to the page, no closures over module scope).
  */
 export function extractProfilePageData(): ProfilePageData {
-  const loginForm = document.querySelector(
-    'form[action*="login"], .login-page, .login, input[name="session_password"], .login-form',
-  );
-  if (loginForm) return { headline: '', location: '', fullText: 'LOGIN_PAGE', error: 'login' };
+  // Detect a genuine login / authwall — not just any element that happens to use
+  // a `.login` class. The old selector matched `.login` anywhere, which can occur
+  // on a normal signed-in profile page, wrongly failing real profiles. Prefer the
+  // reliable signals: an auth-wall URL, or the actual password input.
+  const path = window.location.pathname.toLowerCase();
+  const onAuthUrl = /(?:^|\/)(?:login|authwall|checkpoint|uas)(?:\/|$)/.test(path);
+  const hasPasswordField = !!document.querySelector('input[name="session_password"]');
+  if (onAuthUrl || hasPasswordField) {
+    return { headline: '', location: '', fullText: 'LOGIN_PAGE', error: 'login' };
+  }
 
   const fullText = document.body?.innerText || document.documentElement?.textContent || '';
   const h1 = document.querySelector('h1');

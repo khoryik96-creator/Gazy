@@ -40,3 +40,11 @@ test('malformed rules throw', () => {
   assert.throws(() => evaluateBoolean('x', 'AND'));
   assert.throws(() => evaluateBoolean('x', '("Java" AND "AWS"'));
 });
+
+test('common user mistakes throw so the popup can pre-validate', () => {
+  // These are exactly the inputs that used to make the scoring engine throw for
+  // every profile (all rows "⚠️ failed") with no hint the rule was at fault.
+  assert.throws(() => compileBooleanRule('React AND AWS')); // unquoted keywords
+  assert.throws(() => compileBooleanRule('"React" AND')); // trailing operator
+  assert.throws(() => compileBooleanRule('("React" OR "AWS"')); // unbalanced parens
+});
