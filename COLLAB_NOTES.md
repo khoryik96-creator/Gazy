@@ -27,6 +27,13 @@ your status changes.
 > `npm test` (builds first). `dist/` and `node_modules/` are gitignored. See the
 > 2026-08-20 TS-migration entry below and the rewritten `ARCHITECTURE.md`.
 
+> 🔖 **Versioning: bump on every shipped change.** Keep `src/manifest.json` and
+> `package.json` in the SAME semver, bumped in the same PR as the change:
+> **patch** (x.y.Z) for fixes/tweaks, **minor** (x.Y.0) for a new user-facing
+> feature. `npm version <v> --no-git-tag-version` updates package.json + lock;
+> hand-edit `src/manifest.json` to match, then `npm run build` so `dist/manifest.json`
+> updates too. Current: **1.4.0**.
+
 ## Status log
 
 | Date       | Branch                                      | Scope                                                                                                                                | Status          |
