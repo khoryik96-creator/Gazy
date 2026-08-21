@@ -19,7 +19,11 @@ type Token =
 
 function tokenize(rule: string): Token[] {
   const tokens: Token[] = [];
-  const re = /\s*(?:"([^"]*)"|'([^']*)'|(\()|(\))|([A-Za-z]+))\s*/y;
+  // A bare word is a search term unless it is exactly AND / OR / NOT (uppercase),
+  // matching LinkedIn's convention: `Java AND REST NOT Intern` needs no quotes;
+  // quotes are only needed for multi-word phrases (`"machine learning"`). Terms
+  // may contain tech symbols so `c++`, `c#`, `node.js`, `full-stack` work bare.
+  const re = /\s*(?:"([^"]*)"|'([^']*)'|(\()|(\))|([A-Za-z0-9][A-Za-z0-9#+.\-_]*))\s*/y;
   let pos = 0;
   while (pos < rule.length) {
     re.lastIndex = pos;
@@ -38,12 +42,25 @@ function tokenize(rule: string): Token[] {
       if (word === 'AND' || word === 'OR' || word === 'NOT') {
         tokens.push({ type: word });
       } else {
-        throw new Error(`Unexpected word "${word}" in Boolean rule.`);
+        tokens.push({ type: 'STRING', value: word });
       }
     }
     pos = re.lastIndex;
   }
   return tokens;
+}
+
+/**
+ * All search terms in a rule (quoted or bare), in order — used to derive scoring
+ * keywords from a Boolean rule. Returns [] for an empty rule; throws (like the
+ * parser) on characters it can't tokenize, so callers that want best-effort
+ * extraction should catch.
+ */
+export function ruleTerms(rule: string): string[] {
+  if (!rule || !rule.trim()) return [];
+  return tokenize(rule)
+    .filter((t): t is Extract<Token, { type: 'STRING' }> => t.type === 'STRING')
+    .map((t) => t.value);
 }
 
 class BooleanRuleParser {
