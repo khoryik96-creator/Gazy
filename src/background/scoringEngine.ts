@@ -7,6 +7,7 @@ import {
 import { randomDelayMs, sleep } from '../shared/timing.js';
 import { fetchProfileData } from './profileFetcher.js';
 import { computeScore } from './scoring.js';
+import { compileBooleanRule, type RuleEvaluator } from '../shared/booleanExpression.js';
 import { profileCache } from './cache.js';
 import type { ScoresMap, ScoringRequest } from '../shared/types.js';
 
@@ -88,14 +89,14 @@ export async function restoreCheckpoint(): Promise<void> {
 async function processBatch(
   batch: string[],
   keywords: string[],
-  booleanRule: string,
+  booleanMatches: RuleEvaluator,
   countryFilter: string,
 ): Promise<BatchResult[]> {
   const results = await Promise.all(
     batch.map(async (url): Promise<BatchResult> => {
       try {
         const data = await fetchProfileData(url);
-        const score = computeScore(data, keywords, booleanRule, countryFilter);
+        const score = computeScore(data, keywords, booleanMatches, countryFilter);
         return {
           url,
           score,
@@ -119,6 +120,12 @@ async function processBatch(
 
 export async function startScoring(data: ScoringRequest): Promise<void> {
   if (scoringState.isRunning) return;
+
+  // Compile the Boolean rule ONCE for the whole run (not per profile). Done before
+  // any state is marked running, so an invalid rule rejects cleanly here and the
+  // popup shows the error — instead of every profile throwing mid-run. (The popup
+  // also pre-validates; this is the defence-in-depth backstop.)
+  const booleanMatches: RuleEvaluator = compileBooleanRule(data.booleanRule);
 
   scoringState = {
     isRunning: true,
@@ -146,7 +153,7 @@ export async function startScoring(data: ScoringRequest): Promise<void> {
     const results = await processBatch(
       batch,
       scoringState.keywords,
-      scoringState.booleanRule,
+      booleanMatches,
       scoringState.countryFilter,
     );
 

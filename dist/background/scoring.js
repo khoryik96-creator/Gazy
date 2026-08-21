@@ -1,4 +1,4 @@
-import { evaluateBoolean } from '../shared/booleanExpression.js';
+import { compileBooleanRule } from '../shared/booleanExpression.js';
 const REGEX_SPECIAL = /[.*+?^${}()|[\]\\]/g;
 /**
  * Builds a case-insensitive regex that matches `term` as a whole token, using
@@ -15,14 +15,17 @@ export function boundedRegex(term, flags = 'gi') {
  * Scores a scraped profile against keywords/boolean rule/country filter.
  * Returns 0-100. Throws only on a malformed Boolean rule (surfaced to the UI).
  */
-export function computeScore(profileData, scoringKeywords, booleanRule, countryFilter) {
+export function computeScore(profileData, scoringKeywords, 
+// A rule string (compiled here) or a pre-compiled evaluator. The scoring engine
+// passes the compiled evaluator so the rule is parsed once per run, not once per
+// profile; tests and ad-hoc callers can still pass a plain string.
+booleanRule, countryFilter) {
     if (!profileData)
         return 0;
     const text = profileData.fullText.toLowerCase();
-    if (booleanRule && booleanRule.trim()) {
-        if (!evaluateBoolean(text, booleanRule))
-            return 0;
-    }
+    const booleanMatches = typeof booleanRule === 'function' ? booleanRule : compileBooleanRule(booleanRule);
+    if (!booleanMatches(text))
+        return 0;
     if (countryFilter && countryFilter.trim()) {
         const needle = countryFilter.toLowerCase().trim();
         const loc = (profileData.location || '').toLowerCase();

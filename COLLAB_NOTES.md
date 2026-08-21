@@ -29,14 +29,43 @@ your status changes.
 
 ## Status log
 
-| Date       | Branch                                      | Scope                                                                                                                            | Status          |
-| ---------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------- |
-| 2026-08-03 | claude/multi-account-project-rcmfpz         | popup/templates.js, background/scoring.js                                                                                        | merged (PR #2)  |
-| 2026-08-14 | claude/multi-account-project-rcmfpz         | scoring, scoringEngine, popup render/csv/scoringUI, content/extractor, pageExtractor, shared/booleanExpression, test/            | merged (PR #3)  |
-| 2026-08-20 | claude/multi-account-project-rcmfpz         | shared/constants, shared/timing (new), background/scoringEngine, background/profileFetcher, test/                                | merged (PR #4)  |
-| 2026-08-20 | claude/multi-account-project-rcmfpz         | ENTIRE REPO — TypeScript migration (all src/*.ts, tsconfig, build)                                                               | merged (PR #5)  |
-| 2026-08-21 | claude/chrome-extension-architecture-cj7pul | tooling: ESLint + typescript-eslint, CI workflow, TS pin 6.0.x, lint-driven fixes across src/                                    | done (unmerged) |
-| 2026-08-21 | claude/chrome-extension-architecture-cj7pul | tooling round 2: Prettier, Husky pre-push, Playwright e2e (e2e/), icons (src/icons + gen script), Dependabot, build.mjs copy fix | done (unmerged) |
+| Date       | Branch                                      | Scope                                                                                                                                | Status          |
+| ---------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------------- |
+| 2026-08-03 | claude/multi-account-project-rcmfpz         | popup/templates.js, background/scoring.js                                                                                            | merged (PR #2)  |
+| 2026-08-14 | claude/multi-account-project-rcmfpz         | scoring, scoringEngine, popup render/csv/scoringUI, content/extractor, pageExtractor, shared/booleanExpression, test/                | merged (PR #3)  |
+| 2026-08-20 | claude/multi-account-project-rcmfpz         | shared/constants, shared/timing (new), background/scoringEngine, background/profileFetcher, test/                                    | merged (PR #4)  |
+| 2026-08-20 | claude/multi-account-project-rcmfpz         | ENTIRE REPO — TypeScript migration (all src/*.ts, tsconfig, build)                                                                   | merged (PR #5)  |
+| 2026-08-21 | claude/chrome-extension-architecture-cj7pul | tooling: ESLint + typescript-eslint, CI workflow, TS pin 6.0.x, lint-driven fixes across src/                                        | merged (PR #6)  |
+| 2026-08-21 | claude/chrome-extension-architecture-cj7pul | tooling round 2: Prettier, Husky pre-push, Playwright e2e (e2e/), icons (src/icons + gen script), Dependabot, build.mjs copy fix     | merged (PR #6)  |
+| 2026-08-21 | claude/chrome-extension-architecture-cj7pul | popup/scoringUI (Boolean pre-validation), test/booleanExpression                                                                     | merged (PR #11) |
+| 2026-08-21 | claude/chrome-extension-architecture-cj7pul | pageExtractor (login detection), committed prebuilt dist/, .gitignore/.gitattributes, README install                                 | merged (PR #11) |
+| 2026-08-21 | claude/chrome-extension-architecture-cj7pul | content/autoscroll (dup-extract fix), shared/csv (new, injection-safe) + csvExport, scoring/scoringEngine (compile rule once), test/ | done (unmerged) |
+
+### 2026-08-21 — correctness bug fixes, round 3 (branch `claude/chrome-extension-architecture-cj7pul`)
+
+From a correctness review of the extension logic. All behaviour-preserving except
+where noted; `npm run check` green.
+
+1. **Invalid Boolean rule no longer fails the whole run** (PR #11). Unquoted
+   `React AND AWS`, trailing operators, unbalanced parens used to make
+   `computeScore` throw for _every_ profile (all rows "⚠️ failed"). The popup now
+   validates once with `compileBooleanRule` before starting; the engine also
+   compiles once up front (round 3) as a backstop.
+2. **Login detection tightened** (PR #11). `pageExtractor` no longer treats any
+   `.login` class as an auth wall (could false-positive on real profiles); keys
+   off the auth-wall URL or the `session_password` field. **Unverified against
+   live LinkedIn** — flag if scraping regresses.
+3. **No-build install** (PR #11). Prebuilt `dist/` is committed (un-ignored,
+   `linguist-generated`). Rebuild + commit `dist/` when you change `src/`.
+4. **autoscroll double-extraction fixed** (round 3). A fallback timer could run
+   extraction a second time (duplicate `EXTRACTION_ERROR` on empty results); it's
+   now cancelled once the scroll loop extracts, guarded by an `extracted` flag.
+5. **CSV formula-injection guard** (round 3). New pure `shared/csv.ts`
+   (`csvField`/`toCsv`, unit-tested) prefixes `= + - @`-leading fields with `'`
+   so a crafted name can't execute as a spreadsheet formula. `csvExport.ts` uses it.
+6. **Boolean rule compiled once per run** (round 3). `computeScore`'s 3rd arg now
+   accepts `string | RuleEvaluator`; the engine passes a compiled evaluator so the
+   rule is parsed once, not once per profile. String callers (tests) unchanged.
 
 ### 2026-08-21 — dev-experience tooling round 2 (branch `claude/chrome-extension-architecture-cj7pul`)
 

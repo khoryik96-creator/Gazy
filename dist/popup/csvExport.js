@@ -1,9 +1,7 @@
 import { state } from './state.js';
 import { setStatus } from './status.js';
 import { scoreEntry } from './scores.js';
-function csvField(value) {
-    return '"' + String(value).replace(/"/g, '""') + '"';
-}
+import { toCsv } from '../shared/csv.js';
 export function exportCSV() {
     if (!state.extractedProfiles.length) {
         setStatus('No profiles to export.', 'error');
@@ -27,8 +25,7 @@ export function exportCSV() {
         const location = entry?.location || '';
         rows.push([url, name, score, location, status]);
     });
-    // Real newlines (the original built literal "\\n" text instead of line breaks).
-    const csv = rows.map((row) => row.map(csvField).join(',')).join('\n');
+    const csv = toCsv(rows);
     const blob = new Blob([csv], { type: 'text/csv' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
