@@ -10,7 +10,14 @@ export function exportCSV(): void {
   }
 
   const scores = state.profileScores;
-  const rows: (string | number)[][] = [['URL', 'Name', 'Score', 'Location', 'Status']];
+  const aiEvals = state.aiEvals;
+  // Only include the AI columns when at least one profile was AI-evaluated, so
+  // exports without AI stay lean.
+  const hasAi = Object.keys(aiEvals).length > 0;
+
+  const header = ['URL', 'Name', 'Score', 'Location', 'Status'];
+  if (hasAi) header.push('AI Score', 'AI Reason', 'AI Matched', 'AI Missing');
+  const rows: (string | number)[][] = [header];
 
   state.extractedProfiles.forEach((url) => {
     const name = url.split('/in/')[1]?.split('/')[0] || 'Unknown';
@@ -25,7 +32,20 @@ export function exportCSV(): void {
       }
     }
     const location = entry?.location || '';
-    rows.push([url, name, score, location, status]);
+    const row: (string | number)[] = [url, name, score, location, status];
+
+    if (hasAi) {
+      const ai = aiEvals[url];
+      if (!ai) {
+        row.push('—', '', '', '');
+      } else if (ai.error) {
+        row.push('failed', ai.error, '', '');
+      } else {
+        row.push(ai.score, ai.reason, ai.matched.join('; '), ai.missing.join('; '));
+      }
+    }
+
+    rows.push(row);
   });
 
   const csv = toCsv(rows);
