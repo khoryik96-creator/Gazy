@@ -9,7 +9,14 @@ export const MESSAGE = {
     PROFILES_FOUND: 'PROFILES_FOUND',
     EXTRACTION_ERROR: 'EXTRACTION_ERROR',
     EXTRACT_NOW: 'EXTRACT_NOW',
+    AI_EVALUATE: 'AI_EVALUATE',
+    AI_EVAL_PROGRESS: 'AI_EVAL_PROGRESS',
+    AI_EVAL_COMPLETE: 'AI_EVAL_COMPLETE',
 };
+/** DeepSeek's OpenAI-compatible chat-completions endpoint. */
+export const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
+/** Cap on how much scraped profile text we send per AI evaluation (bounds cost). */
+export const AI_MAX_PROFILE_CHARS = 6000;
 export const RETRY_COUNT = 3;
 export const MIN_TEXT_LENGTH = 50;
 export const PROFILE_TIMEOUT_MS = 60000;

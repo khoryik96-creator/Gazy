@@ -52,3 +52,32 @@ export interface ScoringStatus {
   scores: ScoresMap;
   failedCount: number;
 }
+
+/** DeepSeek model choice for the optional AI evaluation. */
+export type AiModel = 'deepseek-chat' | 'deepseek-reasoner';
+
+/** One profile's AI evaluation result (keyed by URL). */
+export interface AiEvalEntry {
+  /** 0-100 fit score from the model. */
+  score: number;
+  /** One-line rationale. */
+  reason: string;
+  /** Skills/requirements the profile clearly meets. */
+  matched: string[];
+  /** Requirements the profile is missing. */
+  missing: string[];
+  /** Set when the evaluation failed (no key, network, bad response). */
+  error?: string;
+}
+
+/** The AI-evaluation map passed in progress messages and stored in popup state. */
+export type AiEvalMap = Record<string, AiEvalEntry>;
+
+/** Payload sent from the popup to kick off an AI evaluation run. */
+export interface AiEvalRequest {
+  profiles: string[];
+  /** The requirements text (job description, or keywords/Boolean as a fallback). */
+  jd: string;
+  apiKey: string;
+  model: AiModel;
+}

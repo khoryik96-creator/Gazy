@@ -2,6 +2,8 @@
 export const state = {
     extractedProfiles: [],
     profileScores: {},
+    aiEvals: {},
     isSearching: false,
     isScoring: false,
+    isEvaluating: false,
 };

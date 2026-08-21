@@ -8,10 +8,15 @@ import { initButtons } from './events.js';
 import { initMessageListener } from './messages.js';
 import { rehydrateScoringStatus } from './scoringUI.js';
 async function init() {
-    const { profiles, profileScores } = (await getStorage(['profiles', 'profileScores']));
+    const { profiles, profileScores, aiEvals } = (await getStorage([
+        'profiles',
+        'profileScores',
+        'aiEvals',
+    ]));
     if (profiles) {
         state.extractedProfiles = profiles;
         state.profileScores = profileScores || {};
+        state.aiEvals = aiEvals || {};
         renderProfiles();
     }
     await initTheme();

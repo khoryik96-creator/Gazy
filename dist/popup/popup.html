@@ -8,7 +8,26 @@
     <div class="container">
       <div class="header">
         <h1>🔍 Profile Finder</h1>
-        <button id="themeToggle" class="btn-icon" title="Toggle dark mode">🌙</button>
+        <div style="display: flex; gap: 6px">
+          <button id="settingsToggle" class="btn-icon" title="AI settings">⚙️</button>
+          <button id="themeToggle" class="btn-icon" title="Toggle dark mode">🌙</button>
+        </div>
+      </div>
+
+      <div id="settingsPanel" class="settings-panel" style="display: none">
+        <div class="input-group">
+          <label for="aiKey">DeepSeek API key (stored only on this device):</label>
+          <input type="password" id="aiKey" placeholder="sk-..." autocomplete="off" />
+        </div>
+        <div class="ai-model-row">
+          <span class="ai-model-label">AI model:</span>
+          <label class="toggle"><input type="checkbox" id="aiFast" /> ⚡ Fast</label>
+          <label class="toggle"><input type="checkbox" id="aiSmart" /> 🧠 Smarter</label>
+        </div>
+        <small class="hint"
+          >⚡ Fast = deepseek-chat (cheap). 🧠 Smarter = deepseek-reasoner. Profile text is sent to
+          DeepSeek when you click AI Evaluate.</small
+        >
       </div>
 
       <div class="template-section">
@@ -78,6 +97,7 @@
         <span id="profileCount">0 profiles found</span>
         <div style="display: flex; gap: 6px; flex-wrap: wrap">
           <button id="scoreBtn" class="btn-small score">⭐ Score Profiles</button>
+          <button id="aiEvalBtn" class="btn-small ai">✨ AI Evaluate</button>
           <button id="exportBtn" class="btn-small">📊 Export CSV</button>
           <button id="copyAllBtn" class="btn-small">📋 Copy All</button>
         </div>

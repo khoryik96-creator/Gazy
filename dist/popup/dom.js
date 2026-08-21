@@ -26,4 +26,11 @@ export const dom = {
     loadTemplateBtn: id('loadTemplateBtn'),
     deleteTemplateBtn: id('deleteTemplateBtn'),
     clearCacheBtn: id('clearCacheBtn'),
+    // AI evaluation (DeepSeek)
+    aiEvalBtn: id('aiEvalBtn'),
+    settingsToggle: id('settingsToggle'),
+    settingsPanel: id('settingsPanel'),
+    aiKeyInput: id('aiKey'),
+    aiFastToggle: id('aiFast'),
+    aiSmartToggle: id('aiSmart'),
 };
