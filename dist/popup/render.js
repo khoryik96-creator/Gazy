@@ -43,6 +43,28 @@ export function renderProfiles() {
                 encodeURIComponent(debugText) +
                 '" style="cursor:pointer;font-size:12px;">🔍</button>'
             : '';
+        // Optional DeepSeek evaluation: a purple AI score + a 💡 "why" button.
+        const ai = state.aiEvals[url];
+        let aiDisplay = '';
+        let whyBtn = '';
+        if (ai) {
+            if (ai.error) {
+                aiDisplay =
+                    '<span class="profile-ai" style="color:#e08600;" title="' +
+                        escapeHtml(ai.error) +
+                        '">✨⚠️</span>';
+            }
+            else {
+                aiDisplay = '<span class="profile-ai" style="color:#7a5cff;">✨' + ai.score + '%</span>';
+                const why = ai.reason +
+                    (ai.matched.length ? '\n\n✅ Matched: ' + ai.matched.join(', ') : '') +
+                    (ai.missing.length ? '\n\n❌ Missing: ' + ai.missing.join(', ') : '');
+                whyBtn =
+                    '<button class="btn-icon ai-why" data-why="' +
+                        encodeURIComponent(why) +
+                        '" style="cursor:pointer;font-size:12px;">💡</button>';
+            }
+        }
         html +=
             '<div class="profile-item" data-index="' +
                 i +
@@ -57,7 +79,9 @@ export function renderProfiles() {
                 '<span class="profile-score">' +
                 scoreDisplay +
                 '</span>' +
+                aiDisplay +
                 '<div class="profile-actions">' +
+                whyBtn +
                 debugBtn +
                 '<button class="btn-icon copy" data-url="' +
                 escapeHtml(url) +
@@ -78,6 +102,12 @@ function wireResultRowActions() {
         btn.addEventListener('click', (e) => {
             const target = e.currentTarget;
             alert(decodeURIComponent(target.dataset.debug || ''));
+        });
+    });
+    dom.resultsContainer.querySelectorAll('.ai-why').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+            const target = e.currentTarget;
+            alert(decodeURIComponent(target.dataset.why || ''));
         });
     });
     dom.resultsContainer.querySelectorAll('.btn-icon.copy').forEach((btn) => {

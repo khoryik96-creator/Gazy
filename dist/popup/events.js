@@ -7,17 +7,22 @@ import { removeStorage } from './storage.js';
 import { exportCSV, copyAllURLs } from './csvExport.js';
 import { initSearchButton } from './searchUI.js';
 import { initScoreButton } from './scoringUI.js';
+import { initAiEvalButton } from './aiEvalUI.js';
+import { initSettings } from './settings.js';
 import { MESSAGE } from '../shared/constants.js';
 export function initButtons() {
     initSearchButton();
     initScoreButton();
+    initSettings();
+    initAiEvalButton();
     dom.exportBtn.addEventListener('click', exportCSV);
     dom.copyAllBtn.addEventListener('click', () => void copyAllURLs());
     dom.clearBtn.addEventListener('click', () => {
         clearFormData();
         state.extractedProfiles = [];
         state.profileScores = {};
-        void removeStorage(['profiles', 'profileScores', 'formData']);
+        state.aiEvals = {};
+        void removeStorage(['profiles', 'profileScores', 'aiEvals', 'formData']);
         renderProfiles();
         setStatus('Cleared', 'info');
     });

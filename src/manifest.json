@@ -4,7 +4,7 @@
   "version": "1.3.0",
   "description": "Extract LinkedIn profile URLs, score them against job descriptions, and export results.",
   "permissions": ["activeTab", "storage", "scripting", "tabs", "clipboard-write"],
-  "host_permissions": ["https://www.linkedin.com/*"],
+  "host_permissions": ["https://www.linkedin.com/*", "https://api.deepseek.com/*"],
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

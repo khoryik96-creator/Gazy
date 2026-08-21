@@ -6,7 +6,8 @@ import {
   clearCache,
   restoreCheckpoint,
 } from './scoringEngine.js';
-import type { RuntimeMessage, ScoringRequest } from '../shared/types.js';
+import { startAiEval } from './aiEvalEngine.js';
+import type { RuntimeMessage, ScoringRequest, AiEvalRequest } from '../shared/types.js';
 
 void restoreCheckpoint();
 
@@ -34,6 +35,12 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResp
 
     case MESSAGE.CLEAR_CACHE:
       void clearCache().then(() => sendResponse({ status: 'ok' }));
+      return true;
+
+    case MESSAGE.AI_EVALUATE:
+      startAiEval(message.data as AiEvalRequest)
+        .then(() => sendResponse({ status: 'started' }))
+        .catch((err: Error) => sendResponse({ status: 'error', error: err.message }));
       return true;
 
     default:

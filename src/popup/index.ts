@@ -7,16 +7,22 @@ import { initTemplates } from './templates.js';
 import { initButtons } from './events.js';
 import { initMessageListener } from './messages.js';
 import { rehydrateScoringStatus } from './scoringUI.js';
-import type { ScoresMap } from '../shared/types.js';
+import type { ScoresMap, AiEvalMap } from '../shared/types.js';
 
 async function init(): Promise<void> {
-  const { profiles, profileScores } = (await getStorage(['profiles', 'profileScores'])) as {
+  const { profiles, profileScores, aiEvals } = (await getStorage([
+    'profiles',
+    'profileScores',
+    'aiEvals',
+  ])) as {
     profiles?: string[];
     profileScores?: ScoresMap;
+    aiEvals?: AiEvalMap;
   };
   if (profiles) {
     state.extractedProfiles = profiles;
     state.profileScores = profileScores || {};
+    state.aiEvals = aiEvals || {};
     renderProfiles();
   }
 

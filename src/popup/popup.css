@@ -427,3 +427,62 @@ body.dark #progressBar::-webkit-progress-bar {
 .hide {
   display: none !important;
 }
+
+/* AI evaluation (DeepSeek) */
+.btn-small.ai {
+  background: #7a5cff;
+}
+.btn-small.ai:hover {
+  background: #6344e0;
+}
+.btn-small.ai:disabled {
+  background: #a79be0;
+  cursor: not-allowed;
+}
+.settings-panel {
+  background: #f0f1f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+body.dark .settings-panel {
+  background: #242424;
+  border-color: #444;
+}
+.ai-model-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.ai-model-label {
+  font-weight: 500;
+  color: #333;
+}
+body.dark .ai-model-label {
+  color: #ccc;
+}
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  color: #333;
+}
+body.dark .toggle {
+  color: #ddd;
+}
+.profile-ai {
+  min-width: 52px;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 600;
+}
+.btn-icon.ai-why:hover {
+  border-color: #7a5cff;
+  color: #7a5cff;
+}

@@ -41,6 +41,7 @@ your status changes.
 | 2026-08-21 | claude/chrome-extension-architecture-cj7pul | pageExtractor (login detection), committed prebuilt dist/, .gitignore/.gitattributes, README install                                 | merged (PR #11) |
 | 2026-08-21 | claude/chrome-extension-architecture-cj7pul | content/autoscroll (dup-extract fix), shared/csv (new, injection-safe) + csvExport, scoring/scoringEngine (compile rule once), test/ | done (unmerged) |
 | 2026-08-21 | claude/multi-account-project-rcmfpz         | background/scoring (coverage-based rewrite), test/scoring                                                                            | done (unmerged) |
+| 2026-08-21 | claude/multi-account-project-rcmfpz         | AI eval (DeepSeek): shared/aiEvaluation, background/deepseek+aiEvalEngine, popup settings/aiEvalUI, manifest host perm, test/        | done (unmerged) |
 
 ### 2026-08-21 — correctness bug fixes, round 3 (branch `claude/chrome-extension-architecture-cj7pul`)
 
@@ -286,3 +287,29 @@ page still count. The real fix is limiting `pageExtractor.ts` to the person's ow
 sections — unverified against live LinkedIn, left alone. Also JD keyword
 extraction is still frequency-based (top-8 words); coverage tolerates the noise
 better but better keyword derivation is a separate follow-up.
+
+### 2026-08-21 — optional AI evaluation via DeepSeek (branch `claude/multi-account-project-rcmfpz`)
+
+Human wanted profiles evaluated by an AI provider (they use DeepSeek) for better
+judgement than the keyword/coverage score. Added an **optional, opt-in** layer —
+the free keyword score is untouched and remains the default.
+
+- **Bring-your-own key.** New ⚙️ settings panel in the popup: DeepSeek API key
+  (stored in `chrome.storage.local`, device-only) + two mutually-exclusive
+  toggles — ⚡ Fast (`deepseek-chat`) / 🧠 Smarter (`deepseek-reasoner`).
+- **"✨ AI Evaluate" button** sends the extracted profiles + the JD/keywords to
+  DeepSeek's OpenAI-compatible endpoint; each row gets a purple `✨NN%` plus a 💡
+  button showing the reason + matched/missing skills.
+- **Pure, tested core:** `shared/aiEvaluation.ts` (`buildEvaluationMessages`,
+  `parseEvaluationResponse` — tolerant JSON extraction + score clamp), 6 tests.
+- **Background:** `deepseek.ts` (fetch, `response_format: json_object`),
+  `aiEvalEngine.ts` (sequential loop; reuses `fetchProfileData` cache so no extra
+  LinkedIn hits after a scoring run). New `AI_EVALUATE` / `AI_EVAL_PROGRESS` /
+  `AI_EVAL_COMPLETE` messages.
+- **Manifest:** added `https://api.deepseek.com/*` host permission.
+
+**Caveats (documented, not fixed):** end-to-end path is **UNVERIFIED** — needs a
+real DeepSeek key + live LinkedIn page (no browser/network here). Profile text is
+sent to DeepSeek (third-party) — a privacy consideration for candidate data.
+Cost is per-call on the user's key; the button confirms count first. Evaluation
+reads the same whole-page `fullText` as scoring, so scrape quality still bounds it.
