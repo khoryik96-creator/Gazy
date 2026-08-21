@@ -81,7 +81,7 @@ export function fetchProfileData(url: string, retryCount = 0): Promise<ProfilePa
                 return;
               }
 
-              const data = results[0].result as ProfilePageData;
+              const data = results[0].result;
               if (data.error === 'login') {
                 finish(() => reject(new Error('LinkedIn login page detected. Please ensure you are logged in.')));
                 return;

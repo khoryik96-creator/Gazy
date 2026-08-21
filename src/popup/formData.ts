@@ -3,7 +3,7 @@ import { getStorage, setStorage } from './storage.js';
 import type { Template } from '../shared/types.js';
 
 export function saveFormData(): void {
-  setStorage({
+  void setStorage({
     formData: {
       jd: dom.jdInput.value,
       keywords: dom.keywordsInput.value,
@@ -26,7 +26,7 @@ export function initFormPersistence(): void {
   [dom.jdInput, dom.keywordsInput, dom.booleanRuleInput, dom.countryFilterInput].forEach((input) => {
     input.addEventListener('input', saveFormData);
   });
-  loadFormData();
+  void loadFormData();
 }
 
 export function clearFormData(): void {

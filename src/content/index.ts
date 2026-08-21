@@ -3,12 +3,12 @@
 const { extractor, autoscroll } = window.__gazy;
 
 if (window.location.href.includes('linkedin.com/search/results/people') && extractor && autoscroll) {
-  const start = () => setTimeout(() => autoscroll.run(extractor.extractProfiles), 2000);
+  const start = () => setTimeout(() => autoscroll.run(() => extractor.extractProfiles()), 2000);
   if (document.readyState === 'complete') start();
   else window.addEventListener('load', start);
 }
 
-chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((request: { type?: string }, _sender, sendResponse) => {
   if (request.type === 'EXTRACT_NOW') {
     const urls = extractor ? extractor.extractProfiles() : [];
     sendResponse({ status: 'extracting', count: urls.length });

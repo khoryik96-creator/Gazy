@@ -34,7 +34,33 @@ your status changes.
 | 2026-08-03 | claude/multi-account-project-rcmfpz     | popup/templates.js, background/scoring.js | merged (PR #2) |
 | 2026-08-14 | claude/multi-account-project-rcmfpz     | scoring, scoringEngine, popup render/csv/scoringUI, content/extractor, pageExtractor, shared/booleanExpression, test/ | merged (PR #3) |
 | 2026-08-20 | claude/multi-account-project-rcmfpz     | shared/constants, shared/timing (new), background/scoringEngine, background/profileFetcher, test/ | merged (PR #4) |
-| 2026-08-20 | claude/multi-account-project-rcmfpz     | ENTIRE REPO — TypeScript migration (all src/*.ts, tsconfig, build) | done (unmerged) |
+| 2026-08-20 | claude/multi-account-project-rcmfpz     | ENTIRE REPO — TypeScript migration (all src/*.ts, tsconfig, build) | merged (PR #5) |
+| 2026-08-21 | claude/chrome-extension-architecture-cj7pul | tooling: ESLint + typescript-eslint, CI workflow, TS pin 6.0.x, lint-driven fixes across src/ | done (unmerged) |
+
+### 2026-08-21 — linting + CI (branch `claude/chrome-extension-architecture-cj7pul`)
+
+Added ESLint (flat config) with typescript-eslint's **type-checked** rule set,
+plus a GitHub Actions workflow. New scripts: `npm run lint`, `lint:fix`, and
+`check` (typecheck + lint + build + test — the CI gate). `npm test` now aliases
+`check`.
+
+- **TypeScript pinned to `~6.0.3`** (was `^7.0.2`). typescript-eslint hard-refuses
+  to load under the TS 7 native compiler (it needs the compiler's JS type API,
+  which the Go rewrite doesn't expose yet — tracked in typescript-eslint#10940
+  for TS 7.1+). TS 6.0.x is the last JS-based release and sits in the linter's
+  supported range. Build + typecheck are byte-for-byte unaffected. **Install now
+  needs `--legacy-peer-deps`** (the pin trips typescript-eslint's peer range);
+  CI passes the flag too. Revert to TS 7 is a one-line bump once the linter
+  supports it.
+- **36 lint findings fixed across the popup/background/content modules**, no
+  behaviour change. Overwhelmingly `no-floating-promises` on fire-and-forget
+  `chrome.*` calls (now explicit `void`), `no-misused-promises` on async event
+  listeners (now `() => void fn()`), and a handful of loosely-typed message-field
+  concatenations (`unknown` → explicit cast). Details in the diff.
+- **Scope note for other agents:** the only cross-cutting change is `package.json`
+  (deps/scripts) + new `eslint.config.js` + `.github/workflows/ci.yml`. The src/
+  edits are mechanical lint fixes, one idiom repeated. If you have an in-flight
+  branch, rebasing should be clean apart from `package.json`/lock.
 
 ### 2026-08-03 — bug fixes (branch `claude/multi-account-project-rcmfpz`)
 

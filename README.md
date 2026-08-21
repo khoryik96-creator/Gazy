@@ -32,8 +32,16 @@ during development), then hit the reload icon on the extension card.
 |---------------------|---------------------------------------------------------|
 | `npm run build`     | Compile TS and copy assets into `dist/`                 |
 | `npm run typecheck` | Type-check only, no output (`tsc --noEmit`)             |
-| `npm test`          | Build, then run the unit tests against `dist/`          |
+| `npm run lint`      | Lint with ESLint + typescript-eslint (type-checked)     |
+| `npm run lint:fix`  | Lint and auto-fix what it can                           |
+| `npm run check`     | typecheck + lint + build + tests (the full CI gate)     |
+| `npm test`          | Alias for `npm run check`                               |
 | `npm run clean`     | Remove `dist/`                                          |
+
+> **TypeScript version:** pinned to 6.0.x on purpose. typescript-eslint does not
+> yet support the TS 7 native compiler, so type-checked linting needs TS 6. Because
+> of that peer-range mismatch, install with `npm install --legacy-peer-deps`. Once
+> typescript-eslint supports TS 7.1+, bumping back is a one-line change.
 
 ## Tests
 

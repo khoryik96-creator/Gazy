@@ -73,8 +73,8 @@ async function deleteTemplate(): Promise<void> {
 }
 
 export function initTemplates(): void {
-  dom.saveTemplateBtn.addEventListener('click', saveTemplate);
-  dom.loadTemplateBtn.addEventListener('click', loadTemplate);
-  dom.deleteTemplateBtn.addEventListener('click', deleteTemplate);
-  loadTemplateDropdown();
+  dom.saveTemplateBtn.addEventListener('click', () => void saveTemplate());
+  dom.loadTemplateBtn.addEventListener('click', () => void loadTemplate());
+  dom.deleteTemplateBtn.addEventListener('click', () => void deleteTemplate());
+  void loadTemplateDropdown();
 }

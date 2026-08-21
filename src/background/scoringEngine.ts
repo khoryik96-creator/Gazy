@@ -64,9 +64,8 @@ async function checkpoint(): Promise<void> {
 
 export async function restoreCheckpoint(): Promise<void> {
   if (!chrome.storage.session) return;
-  const { [SESSION_KEY]: saved } = (await chrome.storage.session.get(SESSION_KEY)) as {
-    [SESSION_KEY]?: Checkpoint;
-  };
+  const stored = await chrome.storage.session.get(SESSION_KEY);
+  const saved = stored[SESSION_KEY] as Checkpoint | undefined;
   if (saved && saved.isRunning) {
     // The worker restarted mid-run; the in-flight batch loop is gone, so mark it stopped
     // rather than falsely claiming to still be scoring.
@@ -75,7 +74,7 @@ export async function restoreCheckpoint(): Promise<void> {
     scoringState.currentIndex = saved.currentIndex || 0;
     // Keep the total accurate so a reopened popup shows "scored X of Y" from the
     // checkpoint instead of "of 0" (getScoringStatus reports profiles.length).
-    scoringState.profiles = new Array(saved.total || 0).fill('');
+    scoringState.profiles = new Array<string>(saved.total || 0).fill('');
     scoringState.isRunning = false;
     await checkpoint();
   }

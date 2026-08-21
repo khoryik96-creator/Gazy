@@ -10,7 +10,7 @@ export async function initTheme(): Promise<void> {
 
   dom.themeToggle.addEventListener('click', () => {
     const isDark = document.body.classList.toggle('dark');
-    setStorage({ theme: isDark ? 'dark' : 'light' });
+    void setStorage({ theme: isDark ? 'dark' : 'light' });
     dom.themeToggle.textContent = isDark ? '☀️' : '🌙';
   });
 }

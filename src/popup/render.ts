@@ -68,11 +68,12 @@ function wireResultRowActions(): void {
   });
 
   dom.resultsContainer.querySelectorAll<HTMLButtonElement>('.btn-icon.copy').forEach((btn) => {
-    btn.addEventListener('click', async (e) => {
+    btn.addEventListener('click', (e) => {
       const target = e.currentTarget as HTMLButtonElement;
-      await navigator.clipboard.writeText(target.dataset.url || '');
-      setStatus('URL copied!', 'success');
-      setTimeout(() => setStatus('Ready', 'info'), 2000);
+      void navigator.clipboard.writeText(target.dataset.url || '').then(() => {
+        setStatus('URL copied!', 'success');
+        setTimeout(() => setStatus('Ready', 'info'), 2000);
+      });
     });
   });
 
@@ -81,7 +82,7 @@ function wireResultRowActions(): void {
       const target = e.currentTarget as HTMLButtonElement;
       const idx = parseInt(target.dataset.index || '', 10);
       state.extractedProfiles.splice(idx, 1);
-      setStorage({ profiles: state.extractedProfiles });
+      void setStorage({ profiles: state.extractedProfiles });
       renderProfiles();
       setStatus('Profile removed', 'info');
     });

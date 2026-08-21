@@ -52,9 +52,9 @@ window.__gazy.extractor = (() => {
     extractedURLs = [...new Set(profileLinks)];
 
     if (extractedURLs.length === 0) {
-      chrome.runtime.sendMessage({ type: 'EXTRACTION_ERROR', data: 'No profiles found. Try refreshing or scrolling manually.' });
+      void chrome.runtime.sendMessage({ type: 'EXTRACTION_ERROR', data: 'No profiles found. Try refreshing or scrolling manually.' });
     } else {
-      chrome.runtime.sendMessage({ type: 'PROFILES_FOUND', data: extractedURLs });
+      void chrome.runtime.sendMessage({ type: 'PROFILES_FOUND', data: extractedURLs });
     }
 
     isExtracting = false;

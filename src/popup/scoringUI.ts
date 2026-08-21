@@ -27,7 +27,7 @@ export function initScoreButton(): void {
   dom.scoreBtn.addEventListener('click', () => {
     if (state.isScoring) {
       if (confirm('Stop scoring? Progress will be lost.')) {
-        chrome.runtime.sendMessage({ type: MESSAGE.STOP_SCORING });
+        void chrome.runtime.sendMessage({ type: MESSAGE.STOP_SCORING });
         setStatus('⏹️ Stopping scoring...', 'info');
         exitScoringUI();
       }
@@ -97,7 +97,7 @@ export function rehydrateScoringStatus(): void {
 
 export function handleScoringMessage(message: RuntimeMessage): boolean {
   if (message.type === MESSAGE.SCORING_STARTED) {
-    setStatus('⏳ Scoring ' + message.total + ' profiles in background...', 'info');
+    setStatus('⏳ Scoring ' + String(message.total) + ' profiles in background...', 'info');
     enterScoringUI();
     return true;
   }
@@ -108,7 +108,7 @@ export function handleScoringMessage(message: RuntimeMessage): boolean {
     const pct = (message.progress as number | undefined) ?? Math.round((currentIndex / totalMsg) * 100);
     dom.progressBar.value = pct;
     dom.progressLabel.textContent = pct + '%';
-    if (message.eta) dom.etaLabel.textContent = 'ETA: ' + message.eta;
+    if (message.eta) dom.etaLabel.textContent = 'ETA: ' + (message.eta as string);
     setStatus('⏳ Scoring ' + currentIndex + '/' + totalMsg + ' (' + pct + '%)...', 'info');
     state.profileScores = message.scores as ScoresMap;
     renderProfiles();
@@ -118,9 +118,9 @@ export function handleScoringMessage(message: RuntimeMessage): boolean {
   if (message.type === MESSAGE.SCORING_COMPLETE) {
     state.profileScores = message.scores as ScoresMap;
     renderProfiles();
-    setStatus('✅ Scoring complete! (' + message.failedCount + ' profiles failed)', 'success');
+    setStatus('✅ Scoring complete! (' + String(message.failedCount) + ' profiles failed)', 'success');
     exitScoringUI();
-    setStorage({ profileScores: message.scores });
+    void setStorage({ profileScores: message.scores });
     return true;
   }
 
