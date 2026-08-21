@@ -37,6 +37,28 @@ test('boolean rule gates the score to 0 when unmet', () => {
   assert.equal(computeScore(profile('java intern'), ['java'], '"java" NOT "intern"', ''), 0);
 });
 
+test('score reflects skill coverage, not keyword repetition', () => {
+  const kws = ['react', 'aws', 'python', 'kubernetes'];
+  // Spams one skill many times but has none of the others.
+  const spam = profile('react react react react react react react react react');
+  // Mentions every skill once.
+  const broad = profile('react aws python kubernetes engineer');
+  assert.ok(
+    computeScore(broad, kws, '', '') > computeScore(spam, kws, '', ''),
+    'a profile covering all skills should beat one repeating a single skill',
+  );
+});
+
+test('more distinct skills matched => higher score, full coverage lands high', () => {
+  const kws = ['react', 'aws', 'python', 'kubernetes'];
+  const one = computeScore(profile('react developer'), kws, '', '');
+  const two = computeScore(profile('react and aws developer'), kws, '', '');
+  const all = computeScore(profile('react aws python kubernetes'), kws, '', '');
+  assert.ok(two > one, 'matching 2 skills should beat matching 1');
+  assert.ok(all > two, 'matching all skills should beat matching 2');
+  assert.ok(all >= 80, `full coverage should land high, got ${all}`);
+});
+
 test('boundedRegex escapes regex metacharacters', () => {
   assert.ok(boundedRegex('c++').test('a c++ b'));
   assert.equal(boundedRegex('c++').test('acquired'), false);

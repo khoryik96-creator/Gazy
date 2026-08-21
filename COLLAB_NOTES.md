@@ -40,6 +40,7 @@ your status changes.
 | 2026-08-21 | claude/chrome-extension-architecture-cj7pul | popup/scoringUI (Boolean pre-validation), test/booleanExpression                                                                     | merged (PR #11) |
 | 2026-08-21 | claude/chrome-extension-architecture-cj7pul | pageExtractor (login detection), committed prebuilt dist/, .gitignore/.gitattributes, README install                                 | merged (PR #11) |
 | 2026-08-21 | claude/chrome-extension-architecture-cj7pul | content/autoscroll (dup-extract fix), shared/csv (new, injection-safe) + csvExport, scoring/scoringEngine (compile rule once), test/ | done (unmerged) |
+| 2026-08-21 | claude/multi-account-project-rcmfpz         | background/scoring (coverage-based rewrite), test/scoring                                                                            | done (unmerged) |
 
 ### 2026-08-21 — correctness bug fixes, round 3 (branch `claude/chrome-extension-architecture-cj7pul`)
 
@@ -256,3 +257,32 @@ a repo-wide change and it removes the old "no build step" property.
 **Not done:** no TS migration of the `test/` files themselves (they're plain JS
 importing compiled JS — fine as is); no bundler/minifier (unnecessary for MV3
 native ESM); still no CI (env can't run it).
+
+### 2026-08-21 — scoring accuracy: coverage over frequency (branch `claude/multi-account-project-rcmfpz`)
+
+Human reported scores felt "super inaccurate." Root cause in `background/scoring.ts`
+`computeScore`: the keyword score summed **raw occurrences** of all keywords
+(`matchCount / (n*3)`), so a profile repeating ONE skill many times could beat a
+profile that actually had all the searched skills. It also scored over the whole
+`fullText` (includes "people also viewed" etc.).
+
+Rewrote the math to be **coverage-first** (same signature, still accepts
+`string | RuleEvaluator` for the compiled-rule optimisation; gates unchanged):
+
+- **coverageScore (0–80)** = fraction of _distinct_ keywords that appear at least
+  once × 80. This is now the dominant term — "how many of the searched skills
+  does this person have."
+- **titleBonus (0–12)** = matched keywords (>3 chars) that also appear in the
+  headline × 6, capped.
+- **expBonus (0–8)** = plausible years-of-experience tier (3–10y best).
+- final = round(min(100, coverage + title + exp)). Full coverage lands ~80–100.
+
+New tests in `test/scoring.test.js` lock it: a broad match beats keyword-spam, and
+more distinct skills ⇒ higher score. `npm run check` green (30 tests).
+
+**Still NOT fixed (needs scraper work, flagged for pickup):** scoring still reads
+the whole page (`fullText`), so words from other people's cards on the profile
+page still count. The real fix is limiting `pageExtractor.ts` to the person's own
+sections — unverified against live LinkedIn, left alone. Also JD keyword
+extraction is still frequency-based (top-8 words); coverage tolerates the noise
+better but better keyword derivation is a separate follow-up.

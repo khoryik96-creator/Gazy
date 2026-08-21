@@ -47,29 +47,35 @@ export function computeScore(
     if (!countryRe.test(loc) && !countryRe.test(text)) return 0;
   }
 
-  let keywordScore = 0;
+  // Coverage is the dominant signal: of the DISTINCT skills searched for, how
+  // many does the profile actually mention at least once? This answers the
+  // question a recruiter cares about ("does this person have React AND AWS AND
+  // Python?"). The previous formula summed raw keyword occurrences, so a profile
+  // repeating one word many times could outscore a genuine broad match — the
+  // main reason scores felt inaccurate.
   const uniqueKeywords = [...new Set(scoringKeywords)];
-  if (uniqueKeywords.length > 0) {
-    let matchCount = 0;
-    uniqueKeywords.forEach((kw) => {
-      const matches = text.match(boundedRegex(kw));
-      if (matches) matchCount += matches.length;
-    });
-    const maxPossible = uniqueKeywords.length * 3;
-    keywordScore = Math.min(100, (matchCount / maxPossible) * 100);
+  const totalKeywords = uniqueKeywords.length;
+
+  let matched = 0;
+  let matchedInHeadline = 0;
+  const headlineLower = (profileData.headline || '').toLowerCase();
+  for (const kw of uniqueKeywords) {
+    if (boundedRegex(kw).test(text)) {
+      matched++;
+      if (kw.length > 3 && headlineLower.includes(kw)) matchedInHeadline++;
+    }
   }
 
-  let titleScore = 0;
-  if (uniqueKeywords.length > 0 && profileData.headline) {
-    const titleWords = uniqueKeywords.filter((k) => k.length > 3);
-    const headlineLower = profileData.headline.toLowerCase();
-    titleWords.forEach((kw) => {
-      if (headlineLower.includes(kw)) titleScore += 10;
-    });
-    titleScore = Math.min(30, titleScore);
-  }
+  // 0-80 points: the fraction of searched skills present. Full coverage → 80,
+  // leaving headroom for the two bonuses below to reach 100.
+  const coverageScore = totalKeywords > 0 ? (matched / totalKeywords) * 80 : 0;
 
-  let expScore = 0;
+  // Up to 12 points: skills that appear in the headline are a strong signal the
+  // skill is central to this person, not incidental page text.
+  const titleBonus = Math.min(12, matchedInHeadline * 6);
+
+  // Up to 8 points: a plausible amount of experience mentioned on the page.
+  let expBonus = 0;
   const expMatches = text.match(/\b(\d+)\s*(?:years?|yrs?)\b/gi);
   if (expMatches) {
     const years = expMatches
@@ -77,12 +83,12 @@ export function computeScore(
       .filter((y) => y > 0 && y < 60);
     if (years.length > 0) {
       const avg = years.reduce((a, b) => a + b, 0) / years.length;
-      if (avg >= 3 && avg <= 10) expScore = 20;
-      else if (avg > 10) expScore = 15;
-      else if (avg >= 1) expScore = 10;
+      if (avg >= 3 && avg <= 10) expBonus = 8;
+      else if (avg > 10) expBonus = 6;
+      else if (avg >= 1) expBonus = 4;
     }
   }
 
-  const finalScore = Math.round(Math.min(100, keywordScore * 0.6 + titleScore + expScore));
+  const finalScore = Math.round(Math.min(100, coverageScore + titleBonus + expBonus));
   return isNaN(finalScore) ? 0 : finalScore;
 }
