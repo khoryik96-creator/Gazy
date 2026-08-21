@@ -84,9 +84,7 @@ class BooleanRuleParser {
       const right = this.parseUnary();
       const prev = left;
       left =
-        op === 'NOT'
-          ? (text) => prev(text) && !right(text)
-          : (text) => prev(text) && right(text);
+        op === 'NOT' ? (text) => prev(text) && !right(text) : (text) => prev(text) && right(text);
     }
     return left;
   }
@@ -107,7 +105,8 @@ class BooleanRuleParser {
     if (token.type === 'LPAREN') {
       this.next();
       const expr = this.parseOr();
-      if (this.peek()?.type !== 'RPAREN') throw new Error('Invalid Boolean rule syntax: missing ")".');
+      if (this.peek()?.type !== 'RPAREN')
+        throw new Error('Invalid Boolean rule syntax: missing ")".');
       this.next();
       return expr;
     }

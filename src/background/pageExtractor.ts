@@ -6,7 +6,7 @@ import type { ProfilePageData } from '../shared/types.js';
  */
 export function extractProfilePageData(): ProfilePageData {
   const loginForm = document.querySelector(
-    'form[action*="login"], .login-page, .login, input[name="session_password"], .login-form'
+    'form[action*="login"], .login-page, .login, input[name="session_password"], .login-form',
   );
   if (loginForm) return { headline: '', location: '', fullText: 'LOGIN_PAGE', error: 'login' };
 
@@ -23,16 +23,20 @@ export function extractProfilePageData(): ProfilePageData {
       // Newer top-card markup: the location sits in the details block, not the
       // (bold, non-inline) headline line.
       '.pv-text-details__left-panel .text-body-small:not(.inline), ' +
-      '.mt2 .text-body-small.inline.t-black--light'
+      '.mt2 .text-body-small.inline.t-black--light',
   );
   if (locEl) location = (locEl as HTMLElement).innerText.trim();
   if (!location) {
     const topCard = document.querySelector('.pv-top-card--list');
     if (topCard) {
-      const lines = (topCard as HTMLElement).innerText.split('\n').map((s) => s.trim()).filter((s) => s.length > 0);
+      const lines = (topCard as HTMLElement).innerText
+        .split('\n')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
       if (lines.length > 2) {
         const candidate = lines[lines.length - 1];
-        if (candidate && !candidate.includes('connection') && candidate.length < 50) location = candidate;
+        if (candidate && !candidate.includes('connection') && candidate.length < 50)
+          location = candidate;
       }
     }
   }

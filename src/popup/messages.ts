@@ -4,6 +4,6 @@ import type { RuntimeMessage } from '../shared/types.js';
 
 export function initMessageListener(): void {
   chrome.runtime.onMessage.addListener((message: RuntimeMessage) => {
-    handleSearchMessage(message) || handleScoringMessage(message);
+    if (!handleSearchMessage(message)) handleScoringMessage(message);
   });
 }

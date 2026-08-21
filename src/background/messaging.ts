@@ -1,12 +1,19 @@
 import { MESSAGE } from '../shared/constants.js';
-import { startScoring, stopScoring, getScoringStatus, clearCache, restoreCheckpoint } from './scoringEngine.js';
+import {
+  startScoring,
+  stopScoring,
+  getScoringStatus,
+  clearCache,
+  restoreCheckpoint,
+} from './scoringEngine.js';
+import type { RuntimeMessage, ScoringRequest } from '../shared/types.js';
 
-restoreCheckpoint();
+void restoreCheckpoint();
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResponse) => {
   switch (message.type) {
     case MESSAGE.START_SCORING:
-      startScoring(message.data)
+      startScoring(message.data as ScoringRequest)
         .then(() => sendResponse({ status: 'started' }))
         .catch((err: Error) => sendResponse({ status: 'error', error: err.message }));
       return true;
@@ -21,12 +28,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       return false;
 
     case MESSAGE.PROFILES_FOUND:
-      chrome.runtime.sendMessage(message).catch(() => {});
+      void chrome.runtime.sendMessage(message).catch(() => {});
       sendResponse({ status: 'ok' });
       return false;
 
     case MESSAGE.CLEAR_CACHE:
-      clearCache().then(() => sendResponse({ status: 'ok' }));
+      void clearCache().then(() => sendResponse({ status: 'ok' }));
       return true;
 
     default:

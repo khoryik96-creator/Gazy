@@ -23,7 +23,7 @@ export function computeScore(
   profileData: ProfilePageData | null | undefined,
   scoringKeywords: string[],
   booleanRule: string,
-  countryFilter: string
+  countryFilter: string,
 ): number {
   if (!profileData) return 0;
   const text = profileData.fullText.toLowerCase();
@@ -69,7 +69,9 @@ export function computeScore(
   let expScore = 0;
   const expMatches = text.match(/\b(\d+)\s*(?:years?|yrs?)\b/gi);
   if (expMatches) {
-    const years = expMatches.map((m) => parseInt(m.match(/\d+/)![0], 10)).filter((y) => y > 0 && y < 60);
+    const years = expMatches
+      .map((m) => parseInt(m.match(/\d+/)![0], 10))
+      .filter((y) => y > 0 && y < 60);
     if (years.length > 0) {
       const avg = years.reduce((a, b) => a + b, 0) / years.length;
       if (avg >= 3 && avg <= 10) expScore = 20;

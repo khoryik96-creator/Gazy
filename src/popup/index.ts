@@ -29,4 +29,4 @@ async function init(): Promise<void> {
   rehydrateScoringStatus();
 }
 
-init();
+void init();

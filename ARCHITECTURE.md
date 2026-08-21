@@ -24,7 +24,7 @@ dist/             build output — gitignored, this is the folder you Load Unpac
 ```
 
 **Import specifiers use `.js`, not `.ts`** (e.g. `import … from './scoring.js'`).
-That's the TypeScript ESM convention: the source path is `.ts`, but the *emitted*
+That's the TypeScript ESM convention: the source path is `.ts`, but the _emitted_
 file is `.js`, and tsc leaves the specifier untouched so it resolves at runtime.
 
 **Import types with `import type { … }`** from `shared/types.ts` so the import is
@@ -49,9 +49,9 @@ wrong.
   pure, self-contained function since it's serialized by
   `chrome.scripting.executeScript`), `profileFetcher.ts` (open tab → scrape →
   close tab), `scoring.ts` (pure scoring math), `scoringEngine.ts` (batch loop
-  + state + progress messages), `messaging.ts` (the single
-  `chrome.runtime.onMessage` router — the only file that should call
-  `addListener`).
+  - state + progress messages), `messaging.ts` (the single
+    `chrome.runtime.onMessage` router — the only file that should call
+    `addListener`).
 - **`popup/`** — `dom.ts` is the only file that touches `document.getElementById`;
   everything else imports element refs from it. `state.ts` is the single
   mutable source of truth for popup UI state. Each feature (`templates.ts`,
@@ -90,8 +90,8 @@ or theming.
   disallows (`unsafe-eval` isn't permitted) and which also broke on any
   quoted keyword containing the literal substring `AND`/`OR`/`NOT` (e.g.
   `"Brand"`) due to blind string replacement. Replaced with a real tokenizer
-  + recursive-descent parser in `shared/booleanExpression.ts`.
-- `profileFetcher.ts` closed the scraped tab (`chrome.tabs.remove`) *before*
+  - recursive-descent parser in `shared/booleanExpression.ts`.
+- `profileFetcher.ts` closed the scraped tab (`chrome.tabs.remove`) _before_
   running the scraping script against it, so scraping almost always failed.
   The tab is now only closed after scraping finishes (success, error, or
   timeout).

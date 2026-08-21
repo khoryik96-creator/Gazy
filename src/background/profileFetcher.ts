@@ -68,38 +68,50 @@ export function fetchProfileData(url: string, retryCount = 0): Promise<ProfilePa
 
         // Randomised settle time before scraping, so a loaded tab isn't read
         // after a constant delay every single time.
-        setTimeout(() => {
-          chrome.scripting.executeScript(
-            { target: { tabId }, func: extractProfilePageData },
-            (results) => {
-              if (chrome.runtime.lastError) {
-                finish(() => reject(new Error(chrome.runtime.lastError!.message)));
-                return;
-              }
-              if (!results || !results[0] || !results[0].result) {
-                finish(() => reject(new Error('No data extracted')));
-                return;
-              }
+        setTimeout(
+          () => {
+            chrome.scripting.executeScript(
+              { target: { tabId }, func: extractProfilePageData },
+              (results) => {
+                if (chrome.runtime.lastError) {
+                  finish(() => reject(new Error(chrome.runtime.lastError!.message)));
+                  return;
+                }
+                if (!results || !results[0] || !results[0].result) {
+                  finish(() => reject(new Error('No data extracted')));
+                  return;
+                }
 
-              const data = results[0].result as ProfilePageData;
-              if (data.error === 'login') {
-                finish(() => reject(new Error('LinkedIn login page detected. Please ensure you are logged in.')));
-                return;
-              }
-              if (data.fullText.length < MIN_TEXT_LENGTH && retryCount < RETRY_COUNT) {
-                finish(() => {
-                  setTimeout(() => {
-                    fetchProfileData(url, retryCount + 1).then(resolve).catch(reject);
-                  }, randomDelayMs(RETRY_DELAY_MIN_MS, RETRY_DELAY_MAX_MS));
-                });
-                return;
-              }
+                const data = results[0].result;
+                if (data.error === 'login') {
+                  finish(() =>
+                    reject(
+                      new Error('LinkedIn login page detected. Please ensure you are logged in.'),
+                    ),
+                  );
+                  return;
+                }
+                if (data.fullText.length < MIN_TEXT_LENGTH && retryCount < RETRY_COUNT) {
+                  finish(() => {
+                    setTimeout(
+                      () => {
+                        fetchProfileData(url, retryCount + 1)
+                          .then(resolve)
+                          .catch(reject);
+                      },
+                      randomDelayMs(RETRY_DELAY_MIN_MS, RETRY_DELAY_MAX_MS),
+                    );
+                  });
+                  return;
+                }
 
-              profileCache.set(url, data);
-              finish(() => resolve(data));
-            }
-          );
-        }, randomDelayMs(SCRAPE_DELAY_MIN_MS, SCRAPE_DELAY_MAX_MS));
+                profileCache.set(url, data);
+                finish(() => resolve(data));
+              },
+            );
+          },
+          randomDelayMs(SCRAPE_DELAY_MIN_MS, SCRAPE_DELAY_MAX_MS),
+        );
       };
 
       if (tab.status === 'complete') {

@@ -6,12 +6,28 @@
   "description": "Chrome MV3 extension: extract, score, and export LinkedIn people-search results. Written in TypeScript; `npm run build` compiles src/ to dist/, which is the folder loaded as the unpacked extension.",
   "scripts": {
     "build": "node scripts/build.mjs",
+    "icons": "node scripts/gen-icons.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "npm run build && node --test",
-    "clean": "rm -rf dist"
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run format:check && npm run typecheck && npm run lint && npm run build && node --test",
+    "test": "npm run check",
+    "test:e2e": "npm run build && playwright test",
+    "clean": "rm -rf dist",
+    "prepare": "husky || true"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@playwright/test": "^1.62.1",
     "@types/chrome": "^0.2.6",
-    "typescript": "^7.0.2"
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.11.0",
+    "husky": "^9.1.7",
+    "prettier": "^3.9.6",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.67.0"
   }
 }

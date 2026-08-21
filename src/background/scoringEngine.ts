@@ -1,4 +1,9 @@
-import { BATCH_SIZE, SCORING_DELAY_MIN_MS, SCORING_DELAY_MAX_MS, MESSAGE } from '../shared/constants.js';
+import {
+  BATCH_SIZE,
+  SCORING_DELAY_MIN_MS,
+  SCORING_DELAY_MAX_MS,
+  MESSAGE,
+} from '../shared/constants.js';
 import { randomDelayMs, sleep } from '../shared/timing.js';
 import { fetchProfileData } from './profileFetcher.js';
 import { computeScore } from './scoring.js';
@@ -64,9 +69,8 @@ async function checkpoint(): Promise<void> {
 
 export async function restoreCheckpoint(): Promise<void> {
   if (!chrome.storage.session) return;
-  const { [SESSION_KEY]: saved } = (await chrome.storage.session.get(SESSION_KEY)) as {
-    [SESSION_KEY]?: Checkpoint;
-  };
+  const stored = await chrome.storage.session.get(SESSION_KEY);
+  const saved = stored[SESSION_KEY] as Checkpoint | undefined;
   if (saved && saved.isRunning) {
     // The worker restarted mid-run; the in-flight batch loop is gone, so mark it stopped
     // rather than falsely claiming to still be scoring.
@@ -75,7 +79,7 @@ export async function restoreCheckpoint(): Promise<void> {
     scoringState.currentIndex = saved.currentIndex || 0;
     // Keep the total accurate so a reopened popup shows "scored X of Y" from the
     // checkpoint instead of "of 0" (getScoringStatus reports profiles.length).
-    scoringState.profiles = new Array(saved.total || 0).fill('');
+    scoringState.profiles = new Array<string>(saved.total || 0).fill('');
     scoringState.isRunning = false;
     await checkpoint();
   }
@@ -85,7 +89,7 @@ async function processBatch(
   batch: string[],
   keywords: string[],
   booleanRule: string,
-  countryFilter: string
+  countryFilter: string,
 ): Promise<BatchResult[]> {
   const results = await Promise.all(
     batch.map(async (url): Promise<BatchResult> => {
@@ -100,9 +104,15 @@ async function processBatch(
           success: true,
         };
       } catch (e) {
-        return { url, score: 0, location: '', debug: 'ERROR: ' + (e as Error).message, success: false };
+        return {
+          url,
+          score: 0,
+          location: '',
+          debug: 'ERROR: ' + (e as Error).message,
+          success: false,
+        };
       }
-    })
+    }),
   );
   return results;
 }
@@ -123,7 +133,9 @@ export async function startScoring(data: ScoringRequest): Promise<void> {
     startTime: Date.now(),
   };
 
-  chrome.runtime.sendMessage({ type: MESSAGE.SCORING_STARTED, total: scoringState.profiles.length }).catch(() => {});
+  chrome.runtime
+    .sendMessage({ type: MESSAGE.SCORING_STARTED, total: scoringState.profiles.length })
+    .catch(() => {});
   await checkpoint();
 
   const total = scoringState.profiles.length;
@@ -131,7 +143,12 @@ export async function startScoring(data: ScoringRequest): Promise<void> {
 
   while (completed < total && !scoringState.stopRequested) {
     const batch = scoringState.profiles.slice(completed, completed + BATCH_SIZE);
-    const results = await processBatch(batch, scoringState.keywords, scoringState.booleanRule, scoringState.countryFilter);
+    const results = await processBatch(
+      batch,
+      scoringState.keywords,
+      scoringState.booleanRule,
+      scoringState.countryFilter,
+    );
 
     for (const result of results) {
       // One structured entry per URL — score, scraped location (for CSV export),

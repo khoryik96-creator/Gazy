@@ -1,0 +1,3 @@
+# Gate: run the full check (format + typecheck + lint + build + tests) before
+# anything leaves this machine. Fails the push if the gate fails.
+npm run check

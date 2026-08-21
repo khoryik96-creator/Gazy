@@ -40,21 +40,40 @@ export function renderProfiles(): void {
       }
     }
     const debugBtn = debugText
-      ? '<button class="btn-icon debug-btn" data-debug="' + encodeURIComponent(debugText) + '" style="cursor:pointer;font-size:12px;">🔍</button>'
+      ? '<button class="btn-icon debug-btn" data-debug="' +
+        encodeURIComponent(debugText) +
+        '" style="cursor:pointer;font-size:12px;">🔍</button>'
       : '';
 
     html +=
-      '<div class="profile-item" data-index="' + i + '">' +
-      '<a href="' + escapeHtml(url) + '" target="_blank" class="profile-url" title="' + escapeHtml(url) + '">👤 ' + safeName + '</a>' +
-      '<span class="profile-score">' + scoreDisplay + '</span>' +
-      '<div class="profile-actions">' + debugBtn +
-      '<button class="btn-icon copy" data-url="' + escapeHtml(url) + '">📋</button>' +
-      '<button class="btn-icon remove" data-index="' + i + '">✕</button>' +
+      '<div class="profile-item" data-index="' +
+      i +
+      '">' +
+      '<a href="' +
+      escapeHtml(url) +
+      '" target="_blank" class="profile-url" title="' +
+      escapeHtml(url) +
+      '">👤 ' +
+      safeName +
+      '</a>' +
+      '<span class="profile-score">' +
+      scoreDisplay +
+      '</span>' +
+      '<div class="profile-actions">' +
+      debugBtn +
+      '<button class="btn-icon copy" data-url="' +
+      escapeHtml(url) +
+      '">📋</button>' +
+      '<button class="btn-icon remove" data-index="' +
+      i +
+      '">✕</button>' +
       '</div></div>';
   });
 
-  dom.resultsContainer.innerHTML = html || '<div class="empty-state"><p>No profiles match the current filter.</p></div>';
-  dom.profileCount.textContent = visibleCount + ' profiles shown (of ' + state.extractedProfiles.length + ')';
+  dom.resultsContainer.innerHTML =
+    html || '<div class="empty-state"><p>No profiles match the current filter.</p></div>';
+  dom.profileCount.textContent =
+    visibleCount + ' profiles shown (of ' + state.extractedProfiles.length + ')';
 
   wireResultRowActions();
 }
@@ -68,11 +87,12 @@ function wireResultRowActions(): void {
   });
 
   dom.resultsContainer.querySelectorAll<HTMLButtonElement>('.btn-icon.copy').forEach((btn) => {
-    btn.addEventListener('click', async (e) => {
+    btn.addEventListener('click', (e) => {
       const target = e.currentTarget as HTMLButtonElement;
-      await navigator.clipboard.writeText(target.dataset.url || '');
-      setStatus('URL copied!', 'success');
-      setTimeout(() => setStatus('Ready', 'info'), 2000);
+      void navigator.clipboard.writeText(target.dataset.url || '').then(() => {
+        setStatus('URL copied!', 'success');
+        setTimeout(() => setStatus('Ready', 'info'), 2000);
+      });
     });
   });
 
@@ -81,7 +101,7 @@ function wireResultRowActions(): void {
       const target = e.currentTarget as HTMLButtonElement;
       const idx = parseInt(target.dataset.index || '', 10);
       state.extractedProfiles.splice(idx, 1);
-      setStorage({ profiles: state.extractedProfiles });
+      void setStorage({ profiles: state.extractedProfiles });
       renderProfiles();
       setStatus('Profile removed', 'info');
     });
