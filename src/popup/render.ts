@@ -4,26 +4,12 @@ import { setStorage } from './storage.js';
 import { setStatus } from './status.js';
 import { scoreEntry } from './scores.js';
 import { isShortlisted, toggleShortlist } from './shortlist.js';
+import { handleOf, prettyName } from '../shared/nameFormat.js';
 
 export function escapeHtml(str: string): string {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
-}
-
-/** The `/in/<slug>` handle from a profile URL. */
-function handleOf(url: string): string {
-  return url.split('/in/')[1]?.split('/')[0] || '';
-}
-
-/** Turn a URL slug into a readable name: "sarah-chen" → "Sarah Chen".
- *  Drops trailing id-ish tokens (those containing digits). */
-function prettyName(slug: string): string {
-  const words = slug
-    .split('-')
-    .filter((w) => w.length > 0 && !/\d/.test(w))
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1));
-  return words.join(' ') || slug;
 }
 
 function initials(name: string): string {
