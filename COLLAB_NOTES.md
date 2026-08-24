@@ -32,7 +32,7 @@ your status changes.
 > **patch** (x.y.Z) for fixes/tweaks, **minor** (x.Y.0) for a new user-facing
 > feature. `npm version <v> --no-git-tag-version` updates package.json + lock;
 > hand-edit `src/manifest.json` to match, then `npm run build` so `dist/manifest.json`
-> updates too. Current: **1.5.0**.
+> updates too. Current: **1.6.0**.
 
 > 🧱 **Every feature must be modular, efficient, and non-regressing** (owner's
 > standing rule, 2026-08-24). New work goes in its OWN file in the right layer
@@ -58,6 +58,8 @@ your status changes.
 | 2026-08-21 | claude/chrome-extension-architecture-cj7pul | content/autoscroll (dup-extract fix), shared/csv (new, injection-safe) + csvExport, scoring/scoringEngine (compile rule once), test/ | done (unmerged) |
 | 2026-08-21 | claude/multi-account-project-rcmfpz         | background/scoring (coverage-based rewrite), test/scoring                                                                            | done (unmerged) |
 | 2026-08-21 | claude/multi-account-project-rcmfpz         | AI eval (DeepSeek): shared/aiEvaluation, background/deepseek+aiEvalEngine, popup settings/aiEvalUI, manifest host perm, test/        | done (unmerged) |
+| 2026-08-24 | claude/multi-account-project-rcmfpz         | shortlist (popup/shortlist, render/csv/dom/html), COLLAB rule                                                                        | merged (PR #20) |
+| 2026-08-24 | claude/multi-account-project-rcmfpz         | dashboard (src/dashboard/*, shared/scoreView, popup button, build copy)                                                              | done (unmerged) |
 
 ### 2026-08-21 — correctness bug fixes, round 3 (branch `claude/chrome-extension-architecture-cj7pul`)
 
@@ -329,3 +331,24 @@ real DeepSeek key + live LinkedIn page (no browser/network here). Profile text i
 sent to DeepSeek (third-party) — a privacy consideration for candidate data.
 Cost is per-call on the user's key; the button confirms count first. Evaluation
 reads the same whole-page `fullText` as scoring, so scrape quality still bounds it.
+
+### 2026-08-24 — shortlist + full-page dashboard (branch `claude/multi-account-project-rcmfpz`)
+
+Two owner-requested features, each additive and isolated (per the modularity rule).
+
+1. **Shortlist** (PR #20, v1.5.0). `popup/shortlist.ts` owns a Set of starred
+   profile URLs persisted in `chrome.storage.local` under `shortlist`, independent
+   of search results. ⭐/☆ per row, a "⭐ Shortlist only" filter, and a CSV
+   "Shortlisted" column. render/csv just call the module — no duplicated logic.
+
+2. **Dashboard** (v1.6.0). New `src/dashboard/{dashboard.html,css,ts}` — a full
+   browser tab opened by the popup's ⤢ button via
+   `chrome.tabs.create(chrome.runtime.getURL('dashboard/dashboard.html'))`. Reads
+   the same storage (profiles/scores/aiEvals/shortlist) and shows a sortable table
+   with two tabs (All results / Shortlist). Star toggles write back to storage and
+   a `chrome.storage.onChanged` listener keeps it live-synced with the popup.
+   - `scoreEntry` moved to **`shared/scoreView.ts`** so popup AND dashboard read
+     scores identically; `popup/scores.ts` now just re-exports it (render/csvExport
+     imports unchanged — no regression).
+   - `build.mjs` copies the dashboard html/css into `dist/dashboard/`. No new
+     manifest permission needed (extension pages open in a tab as-is).

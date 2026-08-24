@@ -22,6 +22,8 @@ const assets = [
   ['src/manifest.json', 'dist/manifest.json'],
   ['src/popup/popup.html', 'dist/popup/popup.html'],
   ['src/popup/popup.css', 'dist/popup/popup.css'],
+  ['src/dashboard/dashboard.html', 'dist/dashboard/dashboard.html'],
+  ['src/dashboard/dashboard.css', 'dist/dashboard/dashboard.css'],
   ['src/icons', 'dist/icons'],
 ];
 for (const [from, to] of assets) {

@@ -23,6 +23,7 @@ export const dom = {
   hideZeroCheck: id<HTMLInputElement>('hideZero'),
   shortlistOnlyCheck: id<HTMLInputElement>('shortlistOnly'),
   themeToggle: id<HTMLButtonElement>('themeToggle'),
+  dashboardBtn: id<HTMLButtonElement>('dashboardBtn'),
   templateSelect: id<HTMLSelectElement>('templateSelect'),
   saveTemplateBtn: id<HTMLButtonElement>('saveTemplateBtn'),
   loadTemplateBtn: id<HTMLButtonElement>('loadTemplateBtn'),
