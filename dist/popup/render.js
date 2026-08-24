@@ -43,13 +43,13 @@ export function renderProfiles() {
             if (entry.success === false) {
                 // Scrape failed (login wall / timeout / error) — distinct from a real 0
                 // so the recruiter doesn't discard a candidate we simply couldn't read.
-                scoreDisplay = '<span style="color:#e08600; font-weight:bold;">⚠️ failed</span>';
+                scoreDisplay = '<span class="score-fail">⚠️ failed</span>';
             }
             else if (score === 0) {
-                scoreDisplay = '<span style="color:#dc3545; font-weight:bold;">0% ❌</span>';
+                scoreDisplay = '<span class="score-zero">0% ❌</span>';
             }
             else {
-                scoreDisplay = '<span style="color:#28a745; font-weight:bold;">' + score + '%</span>';
+                scoreDisplay = '<span class="score-good">' + score + '%</span>';
             }
         }
         const debugBtn = debugText
@@ -63,13 +63,10 @@ export function renderProfiles() {
         let whyBtn = '';
         if (ai) {
             if (ai.error) {
-                aiDisplay =
-                    '<span class="profile-ai" style="color:#e08600;" title="' +
-                        escapeHtml(ai.error) +
-                        '">✨⚠️</span>';
+                aiDisplay = '<span class="profile-ai err" title="' + escapeHtml(ai.error) + '">✨⚠️</span>';
             }
             else {
-                aiDisplay = '<span class="profile-ai" style="color:#7a5cff;">✨' + ai.score + '%</span>';
+                aiDisplay = '<span class="profile-ai">✨' + ai.score + '%</span>';
                 const why = ai.reason +
                     (ai.matched.length ? '\n\n✅ Matched: ' + ai.matched.join(', ') : '') +
                     (ai.missing.length ? '\n\n❌ Missing: ' + ai.missing.join(', ') : '');

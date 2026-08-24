@@ -1,4 +1,5 @@
 import { scoreEntry } from '../shared/scoreView.js';
+import { normalizeUiTheme } from '../shared/themes.js';
 import type { ScoresMap, AiEvalMap } from '../shared/types.js';
 
 // Full-page dashboard. Reads the same chrome.storage.local data the popup
@@ -41,19 +42,19 @@ async function load(): Promise<void> {
     'profileScores',
     'aiEvals',
     'shortlist',
-    'theme',
+    'uiTheme',
   ])) as unknown as {
     profiles?: string[];
     profileScores?: ScoresMap;
     aiEvals?: AiEvalMap;
     shortlist?: string[];
-    theme?: string;
+    uiTheme?: string;
   };
   profiles = data.profiles || [];
   scores = data.profileScores || {};
   aiEvals = data.aiEvals || {};
   shortlist = new Set(data.shortlist || []);
-  document.body.classList.toggle('dark', data.theme === 'dark');
+  document.body.dataset.theme = normalizeUiTheme(data.uiTheme);
 }
 
 function buildRows(): Row[] {
@@ -214,7 +215,13 @@ initHeaderSort();
 // Stay in sync when the popup (or another dashboard tab) changes the data.
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
-  if (changes.profiles || changes.profileScores || changes.aiEvals || changes.shortlist) {
+  if (
+    changes.profiles ||
+    changes.profileScores ||
+    changes.aiEvals ||
+    changes.shortlist ||
+    changes.uiTheme
+  ) {
     void load().then(render);
   }
 });

@@ -32,7 +32,7 @@ your status changes.
 > **patch** (x.y.Z) for fixes/tweaks, **minor** (x.Y.0) for a new user-facing
 > feature. `npm version <v> --no-git-tag-version` updates package.json + lock;
 > hand-edit `src/manifest.json` to match, then `npm run build` so `dist/manifest.json`
-> updates too. Current: **1.6.0**.
+> updates too. Current: **1.7.0**.
 
 > 🧱 **Every feature must be modular, efficient, and non-regressing** (owner's
 > standing rule, 2026-08-24). New work goes in its OWN file in the right layer
@@ -44,6 +44,8 @@ your status changes.
 > big/independent features as their own PR so a regression is easy to isolate.
 
 ## Status log
+
+| 2026-08-24 | claude/multi-account-project-rcmfpz | THEMES: popup.css+dashboard.css tokenized, shared/themes(+test), popup/themeManager, render classes, settings picker; retired dark toggle | done (unmerged) |
 
 | Date       | Branch                                      | Scope                                                                                                                                | Status          |
 | ---------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------------- |
@@ -352,3 +354,26 @@ Two owner-requested features, each additive and isolated (per the modularity rul
      imports unchanged — no regression).
    - `build.mjs` copies the dashboard html/css into `dist/dashboard/`. No new
      manifest permission needed (extension pages open in a tab as-is).
+
+### 2026-08-24 — theme system: Ledger / Beacon / Nocturne (branch `claude/multi-account-project-rcmfpz`)
+
+Turned the three UI-direction comps into real, switchable themes. Token-based so
+it's additive to layout (no structural rewrite).
+
+- **`shared/themes.ts`** (pure, unit-tested): `UI_THEMES` (ledger/beacon/nocturne),
+  `normalizeUiTheme`, labels, `DEFAULT_UI_THEME='ledger'`.
+- **`popup.css` + `dashboard.css` fully tokenized**: base `body` block = Ledger
+  tokens; `body[data-theme="beacon"|"nocturne"]` override only the tokens. Every
+  component reads `var(--…)`. All the old `body.dark` rules are gone (Nocturne is
+  the dark theme now).
+- **`popup/themeManager.ts`** replaces `theme.ts`: reads `uiTheme` from storage,
+  sets `document.body.dataset.theme`, and drives a **Theme picker in ⚙️ settings**.
+  The old 🌙 light/dark toggle + `theme` storage key are retired (the picker
+  supersedes them; `normalizeUiTheme` treats the stale `'dark'` value as default).
+- **`render.ts`**: score/AI spans now use CSS classes (`score-good/zero/fail`,
+  `profile-ai[.err]`) instead of inline hex, so they follow the theme.
+- **Dashboard** reads the same `uiTheme` and applies `data-theme`; a
+  `chrome.storage.onChanged` on `uiTheme` keeps it live-synced with the popup.
+- Fonts are system stacks (extension CSP can't reliably load web fonts); theme
+  identity is colour + accent + radius. Real Google-font faces could be bundled
+  later if wanted. v1.7.0.
