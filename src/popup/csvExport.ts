@@ -1,6 +1,7 @@
 import { state } from './state.js';
 import { setStatus } from './status.js';
 import { scoreEntry } from './scores.js';
+import { isShortlisted } from './shortlist.js';
 import { toCsv } from '../shared/csv.js';
 
 export function exportCSV(): void {
@@ -15,7 +16,7 @@ export function exportCSV(): void {
   // exports without AI stay lean.
   const hasAi = Object.keys(aiEvals).length > 0;
 
-  const header = ['URL', 'Name', 'Score', 'Location', 'Status'];
+  const header = ['URL', 'Name', 'Score', 'Location', 'Status', 'Shortlisted'];
   if (hasAi) header.push('AI Score', 'AI Reason', 'AI Matched', 'AI Missing');
   const rows: (string | number)[][] = [header];
 
@@ -32,7 +33,14 @@ export function exportCSV(): void {
       }
     }
     const location = entry?.location || '';
-    const row: (string | number)[] = [url, name, score, location, status];
+    const row: (string | number)[] = [
+      url,
+      name,
+      score,
+      location,
+      status,
+      isShortlisted(url) ? 'yes' : 'no',
+    ];
 
     if (hasAi) {
       const ai = aiEvals[url];

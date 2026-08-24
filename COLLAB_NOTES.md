@@ -32,7 +32,16 @@ your status changes.
 > **patch** (x.y.Z) for fixes/tweaks, **minor** (x.Y.0) for a new user-facing
 > feature. `npm version <v> --no-git-tag-version` updates package.json + lock;
 > hand-edit `src/manifest.json` to match, then `npm run build` so `dist/manifest.json`
-> updates too. Current: **1.4.0**.
+> updates too. Current: **1.5.0**.
+
+> 🧱 **Every feature must be modular, efficient, and non-regressing** (owner's
+> standing rule, 2026-08-24). New work goes in its OWN file in the right layer
+> (`shared` / `background` / `popup` / `content`) per `ARCHITECTURE.md` — don't
+> bolt it onto an unrelated file. Put pure logic in `shared/` and unit-test it.
+> Reuse existing helpers instead of duplicating. It must NOT break or slow down
+> existing features — `npm run check` (typecheck + lint + build + tests) must stay
+> green, and prefer additive changes behind a flag/toggle over rewrites. Ship
+> big/independent features as their own PR so a regression is easy to isolate.
 
 ## Status log
 

@@ -3,6 +3,7 @@ import { state } from './state.js';
 import { setStorage } from './storage.js';
 import { setStatus } from './status.js';
 import { scoreEntry } from './scores.js';
+import { isShortlisted, toggleShortlist } from './shortlist.js';
 
 export function escapeHtml(str: string): string {
   const div = document.createElement('div');
@@ -12,6 +13,7 @@ export function escapeHtml(str: string): string {
 
 export function renderProfiles(): void {
   const hideZero = dom.hideZeroCheck.checked;
+  const shortlistOnly = dom.shortlistOnlyCheck.checked;
   const scores = state.profileScores;
   let visibleCount = 0;
   let html = '';
@@ -22,7 +24,20 @@ export function renderProfiles(): void {
     // Only hide genuine zero matches, never failed scrapes — a failed fetch
     // isn't evidence the candidate is a poor match.
     if (hideZero && score === 0 && entry?.success !== false) return;
+    if (shortlistOnly && !isShortlisted(url)) return;
     visibleCount++;
+
+    const starred = isShortlisted(url);
+    const starBtn =
+      '<button class="btn-icon star' +
+      (starred ? ' on' : '') +
+      '" data-url="' +
+      escapeHtml(url) +
+      '" title="' +
+      (starred ? 'Remove from shortlist' : 'Add to shortlist') +
+      '">' +
+      (starred ? '⭐' : '☆') +
+      '</button>';
 
     const rawName = url.split('/in/')[1]?.split('/')[0] || 'Profile ' + (i + 1);
     const safeName = escapeHtml(rawName);
@@ -84,6 +99,7 @@ export function renderProfiles(): void {
       '</span>' +
       aiDisplay +
       '<div class="profile-actions">' +
+      starBtn +
       whyBtn +
       debugBtn +
       '<button class="btn-icon copy" data-url="' +
@@ -118,6 +134,14 @@ function wireResultRowActions(): void {
     });
   });
 
+  dom.resultsContainer.querySelectorAll<HTMLButtonElement>('.btn-icon.star').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      const target = e.currentTarget as HTMLButtonElement;
+      toggleShortlist(target.dataset.url || '');
+      renderProfiles();
+    });
+  });
+
   dom.resultsContainer.querySelectorAll<HTMLButtonElement>('.btn-icon.copy').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       const target = e.currentTarget as HTMLButtonElement;
@@ -141,3 +165,4 @@ function wireResultRowActions(): void {
 }
 
 dom.hideZeroCheck.addEventListener('change', renderProfiles);
+dom.shortlistOnlyCheck.addEventListener('change', renderProfiles);

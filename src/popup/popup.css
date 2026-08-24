@@ -486,3 +486,16 @@ body.dark .toggle {
   border-color: #7a5cff;
   color: #7a5cff;
 }
+
+/* Shortlist star */
+.btn-icon.star {
+  color: #b9932a;
+}
+.btn-icon.star.on {
+  color: #f5b301;
+  border-color: #f5b301;
+}
+.btn-icon.star:hover {
+  border-color: #f5b301;
+  color: #f5b301;
+}
