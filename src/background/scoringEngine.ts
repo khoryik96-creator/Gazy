@@ -68,6 +68,16 @@ async function checkpoint(): Promise<void> {
   });
 }
 
+/**
+ * Durably persist scores to chrome.storage.local from the BACKGROUND, so they
+ * survive the popup closing (Chrome closes the popup the instant you switch
+ * tabs) and are readable by the dashboard. Previously only the popup wrote this
+ * on SCORING_COMPLETE — if the popup was shut, scores were lost.
+ */
+async function persistScoresLocal(): Promise<void> {
+  await chrome.storage.local.set({ profileScores: scoringState.scores });
+}
+
 export async function restoreCheckpoint(): Promise<void> {
   if (!chrome.storage.session) return;
   const stored = await chrome.storage.session.get(SESSION_KEY);
@@ -173,6 +183,7 @@ export async function startScoring(data: ScoringRequest): Promise<void> {
     completed += batch.length;
     scoringState.currentIndex = completed;
     await checkpoint();
+    await persistScoresLocal();
 
     const elapsed = Date.now() - scoringState.startTime;
     const avgTimePerProfile = elapsed / completed;
@@ -200,6 +211,7 @@ export async function startScoring(data: ScoringRequest): Promise<void> {
 
   scoringState.isRunning = false;
   await checkpoint();
+  await persistScoresLocal();
   chrome.runtime
     .sendMessage({
       type: MESSAGE.SCORING_COMPLETE,
