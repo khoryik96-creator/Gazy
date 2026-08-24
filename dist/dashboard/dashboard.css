@@ -161,6 +161,61 @@ h1 {
   color: var(--muted);
 }
 
+/* Bulk selection bar — shows when ≥1 row is checked. */
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.bulk-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.sel-col {
+  width: 34px;
+}
+.selchk,
+#selectAll {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+tbody tr.sel {
+  background: var(--row-hover);
+}
+.folder-menu-pick {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+.folder-menu-pick:hover {
+  background: var(--row-hover);
+}
+.folder-menu-count {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Folder bar — one chip per named folder, plus a create control. */
 .folder-bar {
   display: flex;

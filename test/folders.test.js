@@ -8,6 +8,7 @@ import {
   renameFolder,
   deleteFolder,
   toggleMembership,
+  addMembership,
   foldersForUrl,
   folderCount,
 } from '../dist/shared/folders.js';
@@ -50,6 +51,16 @@ test('toggleMembership adds then removes; unknown folder is a no-op', () => {
   assert.deepEqual(s.members.Strong, []);
   const same = toggleMembership(s, 'Missing', A);
   assert.equal(same, s); // unchanged reference
+});
+
+test('addMembership adds once and is idempotent; unknown folder is a no-op', () => {
+  let s = createFolder(emptyFolderStore(), 'Strong');
+  s = addMembership(s, 'Strong', A);
+  assert.deepEqual(s.members.Strong, [A]);
+  const again = addMembership(s, 'Strong', A); // already a member
+  assert.equal(again, s); // unchanged reference
+  const missing = addMembership(s, 'Nope', A); // unknown folder
+  assert.equal(missing, s);
 });
 
 test('foldersForUrl returns membership in display order', () => {
