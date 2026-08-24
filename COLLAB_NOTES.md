@@ -32,7 +32,7 @@ your status changes.
 > **patch** (x.y.Z) for fixes/tweaks, **minor** (x.Y.0) for a new user-facing
 > feature. `npm version <v> --no-git-tag-version` updates package.json + lock;
 > hand-edit `src/manifest.json` to match, then `npm run build` so `dist/manifest.json`
-> updates too. Current: **1.10.0**.
+> updates too. Current: **1.11.0**.
 
 > 🧱 **Every feature must be modular, efficient, and non-regressing** (owner's
 > standing rule, 2026-08-24). New work goes in its OWN file in the right layer
@@ -45,6 +45,7 @@ your status changes.
 
 ## Status log
 
+| 2026-08-24 | claude/multi-account-project-rcmfpz | DASHBOARD SCORE BTN (v1.11.0): ⭐ Score button beside AI Evaluate on dashboard — reuses shared getScoringKeywords + background scoringEngine, reads stored formData, acts on active view, live status via SCORING_PROGRESS/COMPLETE + storage.onChanged | done. NOTE: extraction still page-1 only (LinkedIn paginates ~10/page) — multi-page follow-up pending user decision on scan depth. |
 | 2026-08-24 | claude/multi-account-project-rcmfpz | SHORTLIST FOLDERS (v1.10.0): shared/folders(+12 tests, pure multi-tag store), dashboard/folderMenu (assign popover), dashboard folder bar/chips/column, rename+delete, storage key `folders`, live storage.onChanged sync; additive over flat shortlist | done |
 | 2026-08-24 | claude/multi-account-project-rcmfpz | DASHBOARD AI EVAL (v1.9.0): AI-Evaluate button on full-tab dashboard — reuses background aiEvalEngine, reads stored aiKey/aiModel/formData, evaluates all/shortlist tab, live status + storage.onChanged render | done |
 | 2026-08-24 | claude/multi-account-project-rcmfpz | THEMES: popup.css+dashboard.css tokenized, shared/themes(+test), popup/themeManager, render classes, settings picker; retired dark toggle | done (unmerged) |

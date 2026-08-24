@@ -12,6 +12,8 @@ import {
   folderCount,
 } from '../shared/folders.js';
 import { openFolderMenu, closeFolderMenu } from './folderMenu.js';
+import { getScoringKeywords } from '../shared/keywordExtraction.js';
+import { compileBooleanRule } from '../shared/booleanExpression.js';
 import type { FolderStore } from '../shared/folders.js';
 import type { ScoresMap, AiEvalMap, AiModel } from '../shared/types.js';
 
@@ -42,6 +44,7 @@ const tbody = el<HTMLTableSectionElement>('tbody');
 const emptyEl = el<HTMLDivElement>('empty');
 const summaryEl = el<HTMLDivElement>('summary');
 const tableEl = el<HTMLTableElement>('tbl');
+const scoreBtn = el<HTMLButtonElement>('scoreBtn');
 const aiEvalBtn = el<HTMLButtonElement>('aiEvalBtn');
 const evalStatusEl = el<HTMLSpanElement>('evalStatus');
 const folderBar = el<HTMLDivElement>('folderBar');
@@ -415,16 +418,85 @@ async function startEval(): Promise<void> {
 
 aiEvalBtn.addEventListener('click', () => void startEval());
 
-// Progress/completion come back from the background engine. Rendered results
-// arrive through storage.onChanged (aiEvals); here we only drive the status text
-// and re-enable the button.
+// Kick off keyword scoring from the dashboard. Mirrors the popup's Score button:
+// derives keywords from the same stored job-description form data and hands the
+// run to the background scoring engine, which persists profileScores to
+// storage.local — so results flow back here live via storage.onChanged.
+async function startScoring(): Promise<void> {
+  const urls = viewUrls();
+  if (urls.length === 0) {
+    setEvalStatus('No candidates to score.');
+    return;
+  }
+
+  const cfg = (await chrome.storage.local.get('formData')) as unknown as {
+    formData?: { jd?: string; keywords?: string; booleanRule?: string; country?: string };
+  };
+  const fd = cfg.formData || {};
+
+  const keywords = getScoringKeywords({
+    manual: fd.keywords,
+    booleanRule: fd.booleanRule,
+    jd: fd.jd,
+  });
+  if (keywords.length === 0) {
+    setEvalStatus('Add a job description, Boolean rule, or keywords in the extension popup first.');
+    return;
+  }
+
+  const booleanRule = fd.booleanRule || '';
+  if (booleanRule.trim()) {
+    try {
+      compileBooleanRule(booleanRule);
+    } catch (e) {
+      setEvalStatus('❌ Invalid Boolean rule: ' + (e as Error).message);
+      return;
+    }
+  }
+
+  if (
+    !confirm(
+      'Score ' +
+        urls.length +
+        ' candidate(s)? This visits each LinkedIn profile in the background to scrape and score it.',
+    )
+  ) {
+    return;
+  }
+
+  scoreBtn.disabled = true;
+  setEvalStatus('⭐ Scoring ' + urls.length + ' candidate(s)…');
+  chrome.runtime.sendMessage(
+    {
+      type: MESSAGE.START_SCORING,
+      data: { profiles: urls, keywords, booleanRule, countryFilter: fd.country || '' },
+    },
+    (response?: { status?: string; error?: string }) => {
+      if (!response || response.status !== 'started') {
+        scoreBtn.disabled = false;
+        setEvalStatus('❌ Failed to start scoring: ' + (response?.error || 'unknown'));
+      }
+    },
+  );
+}
+
+scoreBtn.addEventListener('click', () => void startScoring());
+
+// Progress/completion come back from the background engines. Rendered results
+// arrive through storage.onChanged (aiEvals / profileScores); here we only drive
+// the status text and re-enable the buttons.
 chrome.runtime.onMessage.addListener(
-  (msg: { type?: string; currentIndex?: number; total?: number }) => {
+  (msg: { type?: string; currentIndex?: number; total?: number; failedCount?: number }) => {
     if (msg.type === MESSAGE.AI_EVAL_PROGRESS) {
       setEvalStatus('✦ Evaluating ' + String(msg.currentIndex) + '/' + String(msg.total) + '…');
     } else if (msg.type === MESSAGE.AI_EVAL_COMPLETE) {
       aiEvalBtn.disabled = false;
       setEvalStatus('✦ AI evaluation complete.');
+    } else if (msg.type === MESSAGE.SCORING_PROGRESS) {
+      setEvalStatus('⭐ Scoring ' + String(msg.currentIndex) + '/' + String(msg.total) + '…');
+    } else if (msg.type === MESSAGE.SCORING_COMPLETE) {
+      scoreBtn.disabled = false;
+      setEvalStatus('⭐ Scoring complete.');
     }
   },
 );
