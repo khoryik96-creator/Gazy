@@ -7,7 +7,10 @@ import { initTemplates } from './templates.js';
 import { initButtons } from './events.js';
 import { initMessageListener } from './messages.js';
 import { rehydrateScoringStatus } from './scoringUI.js';
+import { loadShortlist } from './shortlist.js';
 async function init() {
+    // Load the saved shortlist before the first render so stars show correctly.
+    await loadShortlist();
     const { profiles, profileScores, aiEvals } = (await getStorage([
         'profiles',
         'profileScores',

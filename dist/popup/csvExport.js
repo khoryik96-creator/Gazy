@@ -1,6 +1,7 @@
 import { state } from './state.js';
 import { setStatus } from './status.js';
 import { scoreEntry } from './scores.js';
+import { isShortlisted } from './shortlist.js';
 import { toCsv } from '../shared/csv.js';
 export function exportCSV() {
     if (!state.extractedProfiles.length) {
@@ -12,7 +13,7 @@ export function exportCSV() {
     // Only include the AI columns when at least one profile was AI-evaluated, so
     // exports without AI stay lean.
     const hasAi = Object.keys(aiEvals).length > 0;
-    const header = ['URL', 'Name', 'Score', 'Location', 'Status'];
+    const header = ['URL', 'Name', 'Score', 'Location', 'Status', 'Shortlisted'];
     if (hasAi)
         header.push('AI Score', 'AI Reason', 'AI Matched', 'AI Missing');
     const rows = [header];
@@ -30,7 +31,14 @@ export function exportCSV() {
             }
         }
         const location = entry?.location || '';
-        const row = [url, name, score, location, status];
+        const row = [
+            url,
+            name,
+            score,
+            location,
+            status,
+            isShortlisted(url) ? 'yes' : 'no',
+        ];
         if (hasAi) {
             const ai = aiEvals[url];
             if (!ai) {

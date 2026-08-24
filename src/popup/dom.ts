@@ -21,6 +21,7 @@ export const dom = {
   progressLabel: id<HTMLSpanElement>('progressLabel'),
   etaLabel: id<HTMLSpanElement>('etaLabel'),
   hideZeroCheck: id<HTMLInputElement>('hideZero'),
+  shortlistOnlyCheck: id<HTMLInputElement>('shortlistOnly'),
   themeToggle: id<HTMLButtonElement>('themeToggle'),
   templateSelect: id<HTMLSelectElement>('templateSelect'),
   saveTemplateBtn: id<HTMLButtonElement>('saveTemplateBtn'),

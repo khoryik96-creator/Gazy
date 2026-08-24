@@ -20,6 +20,7 @@ export const dom = {
     progressLabel: id('progressLabel'),
     etaLabel: id('etaLabel'),
     hideZeroCheck: id('hideZero'),
+    shortlistOnlyCheck: id('shortlistOnly'),
     themeToggle: id('themeToggle'),
     templateSelect: id('templateSelect'),
     saveTemplateBtn: id('saveTemplateBtn'),
