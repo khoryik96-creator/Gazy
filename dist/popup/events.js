@@ -17,6 +17,9 @@ export function initButtons() {
     initAiEvalButton();
     dom.exportBtn.addEventListener('click', exportCSV);
     dom.copyAllBtn.addEventListener('click', () => void copyAllURLs());
+    dom.dashboardBtn.addEventListener('click', () => {
+        void chrome.tabs.create({ url: chrome.runtime.getURL('dashboard/dashboard.html') });
+    });
     dom.clearBtn.addEventListener('click', () => {
         clearFormData();
         state.extractedProfiles = [];

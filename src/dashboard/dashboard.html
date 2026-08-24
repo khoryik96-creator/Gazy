@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gazy Dashboard</title>
+    <link rel="stylesheet" href="dashboard.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="dash-header">
+        <h1>🔍 Gazy Dashboard</h1>
+        <div class="tabs">
+          <button id="tabAll" class="tab active">All results</button>
+          <button id="tabShort" class="tab">⭐ Shortlist</button>
+        </div>
+      </header>
+
+      <div id="summary" class="summary"></div>
+
+      <div class="table-scroll">
+        <table id="tbl">
+          <thead>
+            <tr>
+              <th class="star-col"></th>
+              <th data-sort="name">Candidate</th>
+              <th data-sort="kw" class="num">Score</th>
+              <th data-sort="ai" class="num">AI</th>
+              <th data-sort="location">Location</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <div id="empty" class="empty" style="display: none">
+        No candidates yet. Run a search and score in the extension popup, then reopen this
+        dashboard.
+      </div>
+    </div>
+    <script type="module" src="dashboard.js"></script>
+  </body>
+</html>
