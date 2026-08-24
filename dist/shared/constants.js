@@ -12,6 +12,9 @@ export const MESSAGE = {
     AI_EVALUATE: 'AI_EVALUATE',
     AI_EVAL_PROGRESS: 'AI_EVAL_PROGRESS',
     AI_EVAL_COMPLETE: 'AI_EVAL_COMPLETE',
+    START_SEARCH: 'START_SEARCH',
+    SEARCH_PROGRESS: 'SEARCH_PROGRESS',
+    PAGE_EXTRACTED: 'PAGE_EXTRACTED',
 };
 /** DeepSeek's OpenAI-compatible chat-completions endpoint. */
 export const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
@@ -32,3 +35,11 @@ export const SCRAPE_DELAY_MIN_MS = 1500; // min settle time before scraping a lo
 export const SCRAPE_DELAY_MAX_MS = 4000; // max settle time before scraping a loaded tab
 export const RETRY_DELAY_MIN_MS = 3000; // min backoff before retrying thin content
 export const RETRY_DELAY_MAX_MS = 6000; // max backoff before retrying thin content
+// Multi-page result scanning. A LinkedIn people-search page holds ~10 results;
+// to reach more candidates we walk the paginated URL (&page=N) one page at a
+// time, pausing a randomised gap between page turns for the same anti-detection
+// reason the per-profile scraping delays exist.
+export const DEFAULT_SCAN_PAGES = 10; // pages scanned per search unless changed
+export const MAX_SCAN_PAGES = 10; // upper bound on the Pages setting
+export const PAGE_NAV_DELAY_MIN_MS = 2500; // min gap before loading the next page
+export const PAGE_NAV_DELAY_MAX_MS = 6000; // max gap before loading the next page

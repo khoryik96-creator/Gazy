@@ -22,6 +22,7 @@ export const dom = {
     hideZeroCheck: id('hideZero'),
     shortlistOnlyCheck: id('shortlistOnly'),
     themeSelect: id('themeSelect'),
+    scanPagesInput: id('scanPages'),
     dashboardBtn: id('dashboardBtn'),
     templateSelect: id('templateSelect'),
     saveTemplateBtn: id('saveTemplateBtn'),

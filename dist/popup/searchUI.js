@@ -3,9 +3,10 @@ import { state } from './state.js';
 import { setStatus } from './status.js';
 import { renderProfiles } from './render.js';
 import { getSearchQuery } from './searchQuery.js';
+import { getScanPages } from './searchSettings.js';
 import { setStorage } from './storage.js';
 import { MESSAGE } from '../shared/constants.js';
-async function runSearch() {
+function runSearch() {
     if (state.isSearching)
         return;
     const query = getSearchQuery();
@@ -18,23 +19,29 @@ async function runSearch() {
     renderProfiles();
     state.isSearching = true;
     dom.searchBtn.disabled = true;
-    setStatus('Searching LinkedIn...', 'info');
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    const tab = tabs[0];
-    if (!tab || !tab.id) {
-        setStatus('No active tab found.', 'error');
-        state.isSearching = false;
-        dom.searchBtn.disabled = false;
-        return;
-    }
-    const searchURL = 'https://www.linkedin.com/search/results/people/?keywords=' + encodeURIComponent(query);
-    await chrome.tabs.update(tab.id, { url: searchURL });
-    setStatus('Waiting for profile extraction...', 'info');
+    const maxPages = getScanPages();
+    setStatus(maxPages > 1 ? 'Scanning up to ' + maxPages + ' pages…' : 'Searching LinkedIn…', 'info');
+    // The background drives navigation across result pages (see searchSession.ts)
+    // and reports progress, then a final PROFILES_FOUND.
+    chrome.runtime.sendMessage({ type: MESSAGE.START_SEARCH, data: { query, maxPages } }, (response) => {
+        if (!response || response.status !== 'started') {
+            state.isSearching = false;
+            dom.searchBtn.disabled = false;
+            setStatus('❌ Failed to start search: ' + (response?.error || 'unknown error'), 'error');
+        }
+    });
 }
 export function initSearchButton() {
-    dom.searchBtn.addEventListener('click', () => void runSearch());
+    dom.searchBtn.addEventListener('click', () => runSearch());
 }
 export function handleSearchMessage(message) {
+    if (message.type === MESSAGE.SEARCH_PROGRESS) {
+        const page = message.page;
+        const maxPages = message.maxPages;
+        const total = message.total;
+        setStatus('Scanning page ' + page + '/' + maxPages + '… ' + total + ' found', 'info');
+        return true;
+    }
     if (message.type === MESSAGE.PROFILES_FOUND) {
         state.extractedProfiles = message.data;
         void setStorage({ profiles: state.extractedProfiles });

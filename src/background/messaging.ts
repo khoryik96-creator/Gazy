@@ -7,12 +7,24 @@ import {
   restoreCheckpoint,
 } from './scoringEngine.js';
 import { startAiEval } from './aiEvalEngine.js';
+import { startSearch, handlePageExtracted } from './searchSession.js';
 import type { RuntimeMessage, ScoringRequest, AiEvalRequest } from '../shared/types.js';
 
 void restoreCheckpoint();
 
-chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: RuntimeMessage, sender, sendResponse) => {
   switch (message.type) {
+    case MESSAGE.START_SEARCH:
+      startSearch(message.data as { query: string; maxPages?: number })
+        .then(() => sendResponse({ status: 'started' }))
+        .catch((err: Error) => sendResponse({ status: 'error', error: err.message }));
+      return true;
+
+    case MESSAGE.PAGE_EXTRACTED:
+      void handlePageExtracted(message.data, sender.tab?.id);
+      sendResponse({ status: 'ok' });
+      return false;
+
     case MESSAGE.START_SCORING:
       startScoring(message.data as ScoringRequest)
         .then(() => sendResponse({ status: 'started' }))
@@ -26,11 +38,6 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResp
 
     case MESSAGE.GET_SCORING_STATUS:
       sendResponse(getScoringStatus());
-      return false;
-
-    case MESSAGE.PROFILES_FOUND:
-      void chrome.runtime.sendMessage(message).catch(() => {});
-      sendResponse({ status: 'ok' });
       return false;
 
     case MESSAGE.CLEAR_CACHE:

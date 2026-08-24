@@ -3,6 +3,7 @@ import { getStorage } from './storage.js';
 import { renderProfiles } from './render.js';
 import { initThemeManager } from './themeManager.js';
 import { initFormPersistence } from './formData.js';
+import { initScanPages } from './searchSettings.js';
 import { initTemplates } from './templates.js';
 import { initButtons } from './events.js';
 import { initMessageListener } from './messages.js';
@@ -24,6 +25,7 @@ async function init() {
     }
     await initThemeManager();
     initFormPersistence();
+    initScanPages();
     initTemplates();
     initButtons();
     initMessageListener();
