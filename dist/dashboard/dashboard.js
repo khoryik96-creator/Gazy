@@ -5,6 +5,7 @@ import { emptyFolderStore, normalizeFolderStore, createFolder, renameFolder, del
 import { openFolderMenu, closeFolderMenu } from './folderMenu.js';
 import { getScoringKeywords } from '../shared/keywordExtraction.js';
 import { compileBooleanRule } from '../shared/booleanExpression.js';
+import { largeRunWarning } from '../shared/runGuard.js';
 const el = (id) => document.getElementById(id);
 const tbody = el('tbody');
 const emptyEl = el('empty');
@@ -322,7 +323,8 @@ async function startEval() {
         return;
     }
     const model = cfg.aiModel === 'deepseek-reasoner' ? 'deepseek-reasoner' : 'deepseek-chat';
-    if (!confirm('Send ' +
+    if (!confirm(largeRunWarning(urls.length, 'ai') +
+        'Send ' +
         urls.length +
         ' profile(s) to DeepSeek (' +
         model +
@@ -370,7 +372,8 @@ async function startScoring() {
             return;
         }
     }
-    if (!confirm('Score ' +
+    if (!confirm(largeRunWarning(urls.length, 'score') +
+        'Score ' +
         urls.length +
         ' candidate(s)? This visits each LinkedIn profile in the background to scrape and score it.')) {
         return;

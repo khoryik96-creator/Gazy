@@ -5,6 +5,7 @@ import { renderProfiles } from './render.js';
 import { getCurrentScoringKeywords } from './searchQuery.js';
 import { MESSAGE } from '../shared/constants.js';
 import { compileBooleanRule } from '../shared/booleanExpression.js';
+import { largeRunWarning } from '../shared/runGuard.js';
 import { setStorage } from './storage.js';
 import type { RuntimeMessage, ScoringStatus, ScoresMap } from '../shared/types.js';
 
@@ -63,6 +64,10 @@ export function initScoreButton(): void {
         return;
       }
     }
+
+    // Large runs are slow and a heavier LinkedIn footprint — confirm first.
+    const warning = largeRunWarning(state.extractedProfiles.length, 'score');
+    if (warning && !confirm(warning + 'Start scoring?')) return;
 
     chrome.runtime.sendMessage(
       {

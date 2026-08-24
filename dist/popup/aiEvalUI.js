@@ -4,6 +4,7 @@ import { setStatus } from './status.js';
 import { renderProfiles } from './render.js';
 import { getAiKey, getAiModel } from './settings.js';
 import { MESSAGE } from '../shared/constants.js';
+import { largeRunWarning } from '../shared/runGuard.js';
 import { setStorage } from './storage.js';
 function requirementsText() {
     return (dom.jdInput.value.trim() || dom.keywordsInput.value.trim() || dom.booleanRuleInput.value.trim());
@@ -34,7 +35,8 @@ export function initAiEvalButton() {
         }
         const model = getAiModel();
         const count = state.extractedProfiles.length;
-        if (!confirm('Send ' +
+        if (!confirm(largeRunWarning(count, 'ai') +
+            'Send ' +
             count +
             ' profile(s) to DeepSeek (' +
             model +

@@ -32,7 +32,7 @@ your status changes.
 > **patch** (x.y.Z) for fixes/tweaks, **minor** (x.Y.0) for a new user-facing
 > feature. `npm version <v> --no-git-tag-version` updates package.json + lock;
 > hand-edit `src/manifest.json` to match, then `npm run build` so `dist/manifest.json`
-> updates too. Current: **1.12.0**.
+> updates too. Current: **1.12.1**.
 
 > 🧱 **Every feature must be modular, efficient, and non-regressing** (owner's
 > standing rule, 2026-08-24). New work goes in its OWN file in the right layer
@@ -45,6 +45,7 @@ your status changes.
 
 ## Status log
 
+| 2026-08-24 | claude/multi-account-project-rcmfpz | LARGE-RUN GUARD (v1.12.1): shared/runGuard(+4 tests, isLargeRun/estimate/largeRunWarning, threshold 25) wired into all 4 Score/AI-Evaluate confirms (popup Score had none before) — warns on time+LinkedIn footprint (score) / API credits (ai) | done |
 | 2026-08-24 | claude/multi-account-project-rcmfpz | MULTI-PAGE SCAN (v1.12.0): shared/pagination(+6 tests, pure url/merge/stop logic), background/searchSession (walks &page=N via active tab, randomised nav delays, accumulates union), content now sends PAGE_EXTRACTED (collectProfiles, no self-messaging), popup START_SEARCH + SEARCH_PROGRESS + "Pages to scan" setting (default/max 10, key `scanPages`). Fixes page-1-only extraction. | done |
 | 2026-08-24 | claude/multi-account-project-rcmfpz | DASHBOARD SCORE BTN (v1.11.0): ⭐ Score button beside AI Evaluate on dashboard — reuses shared getScoringKeywords + background scoringEngine, reads stored formData, acts on active view, live status via SCORING_PROGRESS/COMPLETE + storage.onChanged | done. NOTE: extraction still page-1 only (LinkedIn paginates ~10/page) — multi-page follow-up pending user decision on scan depth. |
 | 2026-08-24 | claude/multi-account-project-rcmfpz | SHORTLIST FOLDERS (v1.10.0): shared/folders(+12 tests, pure multi-tag store), dashboard/folderMenu (assign popover), dashboard folder bar/chips/column, rename+delete, storage key `folders`, live storage.onChanged sync; additive over flat shortlist | done |
