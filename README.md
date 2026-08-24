@@ -12,17 +12,38 @@ to follow when adding new features.
 ## Install (no build required)
 
 A prebuilt copy lives in **`dist/`**, so you don't need Node or a build step just
-to use the extension:
+to use the extension.
 
-1. Download this repository (green **Code → Download ZIP**) and unzip it.
-2. `chrome://extensions` → enable **Developer mode** → **Load unpacked**.
-3. Select the **`dist/`** folder inside the unzipped project (the one containing
-   `manifest.json`) — **not** the top-level project folder, which has no manifest.
+**Recommended — clone once, then update in place (no re-downloading).** If you
+install by cloning the repo, staying current is a one-click pull instead of a
+fresh download + unzip every time (see "Staying up to date" below):
+
+1. Install **Git** (GitHub Desktop is the easy GUI: <https://desktop.github.com>).
+2. Clone `khoryik96-creator/Gazy` to a permanent folder (e.g. `Documents\Gazy`).
+3. `chrome://extensions` → enable **Developer mode** → **Load unpacked** → select
+   the **`dist/`** folder inside the clone. Do this **once**.
 4. Open the popup on `linkedin.com`, paste a job description or keywords, and
    click **Search LinkedIn**.
 
+**Or just download once:** green **Code → Download ZIP**, unzip, and Load unpacked
+the **`dist/`** subfolder (the one containing `manifest.json`).
+
 > Loading the top-level folder gives "Manifest file is missing or unreadable" —
 > pick the `dist/` subfolder.
+
+## Staying up to date (no re-downloading)
+
+Because `dist/` is committed, getting a new version is just pulling the repo — no
+ZIP, no extraction, and Chrome keeps the extension registered from the same folder.
+
+- **Easiest:** double-click **`update.bat`** (Windows) or run **`./update.sh`**
+  (macOS/Linux) in the folder. It pulls the latest and reminds you what to do next.
+- **GitHub Desktop:** click **Fetch/Pull origin**.
+- **Command line:** `git pull` in the folder.
+
+Then, in Chrome (~10 seconds): open `chrome://extensions`, click the **↻ reload**
+icon on the Gazy card, and refresh your LinkedIn tab. That reload is the one step
+Chrome can't skip for a locally-loaded extension.
 
 ## Develop (build from source)
 

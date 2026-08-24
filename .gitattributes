@@ -1,1 +1,6 @@
 dist/** linguist-generated=true
+
+# Keep script line endings correct per-platform so the updaters run when
+# double-clicked: Windows batch needs CRLF, shell scripts need LF.
+*.bat text eol=crlf
+*.sh text eol=lf
