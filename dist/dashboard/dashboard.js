@@ -3,11 +3,14 @@ import { normalizeUiTheme } from '../shared/themes.js';
 import { MESSAGE } from '../shared/constants.js';
 import { emptyFolderStore, normalizeFolderStore, createFolder, renameFolder, deleteFolder, toggleMembership, foldersForUrl, folderCount, } from '../shared/folders.js';
 import { openFolderMenu, closeFolderMenu } from './folderMenu.js';
+import { getScoringKeywords } from '../shared/keywordExtraction.js';
+import { compileBooleanRule } from '../shared/booleanExpression.js';
 const el = (id) => document.getElementById(id);
 const tbody = el('tbody');
 const emptyEl = el('empty');
 const summaryEl = el('summary');
 const tableEl = el('tbl');
+const scoreBtn = el('scoreBtn');
 const aiEvalBtn = el('aiEvalBtn');
 const evalStatusEl = el('evalStatus');
 const folderBar = el('folderBar');
@@ -336,9 +339,58 @@ async function startEval() {
     });
 }
 aiEvalBtn.addEventListener('click', () => void startEval());
-// Progress/completion come back from the background engine. Rendered results
-// arrive through storage.onChanged (aiEvals); here we only drive the status text
-// and re-enable the button.
+// Kick off keyword scoring from the dashboard. Mirrors the popup's Score button:
+// derives keywords from the same stored job-description form data and hands the
+// run to the background scoring engine, which persists profileScores to
+// storage.local — so results flow back here live via storage.onChanged.
+async function startScoring() {
+    const urls = viewUrls();
+    if (urls.length === 0) {
+        setEvalStatus('No candidates to score.');
+        return;
+    }
+    const cfg = (await chrome.storage.local.get('formData'));
+    const fd = cfg.formData || {};
+    const keywords = getScoringKeywords({
+        manual: fd.keywords,
+        booleanRule: fd.booleanRule,
+        jd: fd.jd,
+    });
+    if (keywords.length === 0) {
+        setEvalStatus('Add a job description, Boolean rule, or keywords in the extension popup first.');
+        return;
+    }
+    const booleanRule = fd.booleanRule || '';
+    if (booleanRule.trim()) {
+        try {
+            compileBooleanRule(booleanRule);
+        }
+        catch (e) {
+            setEvalStatus('❌ Invalid Boolean rule: ' + e.message);
+            return;
+        }
+    }
+    if (!confirm('Score ' +
+        urls.length +
+        ' candidate(s)? This visits each LinkedIn profile in the background to scrape and score it.')) {
+        return;
+    }
+    scoreBtn.disabled = true;
+    setEvalStatus('⭐ Scoring ' + urls.length + ' candidate(s)…');
+    chrome.runtime.sendMessage({
+        type: MESSAGE.START_SCORING,
+        data: { profiles: urls, keywords, booleanRule, countryFilter: fd.country || '' },
+    }, (response) => {
+        if (!response || response.status !== 'started') {
+            scoreBtn.disabled = false;
+            setEvalStatus('❌ Failed to start scoring: ' + (response?.error || 'unknown'));
+        }
+    });
+}
+scoreBtn.addEventListener('click', () => void startScoring());
+// Progress/completion come back from the background engines. Rendered results
+// arrive through storage.onChanged (aiEvals / profileScores); here we only drive
+// the status text and re-enable the buttons.
 chrome.runtime.onMessage.addListener((msg) => {
     if (msg.type === MESSAGE.AI_EVAL_PROGRESS) {
         setEvalStatus('✦ Evaluating ' + String(msg.currentIndex) + '/' + String(msg.total) + '…');
@@ -346,6 +398,13 @@ chrome.runtime.onMessage.addListener((msg) => {
     else if (msg.type === MESSAGE.AI_EVAL_COMPLETE) {
         aiEvalBtn.disabled = false;
         setEvalStatus('✦ AI evaluation complete.');
+    }
+    else if (msg.type === MESSAGE.SCORING_PROGRESS) {
+        setEvalStatus('⭐ Scoring ' + String(msg.currentIndex) + '/' + String(msg.total) + '…');
+    }
+    else if (msg.type === MESSAGE.SCORING_COMPLETE) {
+        scoreBtn.disabled = false;
+        setEvalStatus('⭐ Scoring complete.');
     }
 });
 // Stay in sync when the popup (or another dashboard tab) changes the data.
