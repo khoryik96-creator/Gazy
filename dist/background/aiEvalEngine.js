@@ -13,7 +13,10 @@ export async function startAiEval(req) {
     if (running)
         return;
     running = true;
-    const results = {};
+    // Start from any AI evals already saved, so evaluating a subset (e.g. from the
+    // dashboard) merges rather than wipes the rest.
+    const stored = (await chrome.storage.local.get('aiEvals'));
+    const results = { ...(stored.aiEvals || {}) };
     const total = req.profiles.length;
     let index = 0;
     try {
@@ -33,6 +36,9 @@ export async function startAiEval(req) {
                 entry = { score: 0, reason: '', matched: [], missing: [], error: e.message };
             }
             results[url] = entry;
+            // Persist from the background so results survive the popup closing and are
+            // picked up live by the dashboard.
+            await chrome.storage.local.set({ aiEvals: results });
             void chrome.runtime
                 .sendMessage({
                 type: MESSAGE.AI_EVAL_PROGRESS,
