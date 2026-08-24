@@ -1,10 +1,13 @@
 import { scoreEntry } from '../shared/scoreView.js';
 import { normalizeUiTheme } from '../shared/themes.js';
+import { MESSAGE } from '../shared/constants.js';
 const el = (id) => document.getElementById(id);
 const tbody = el('tbody');
 const emptyEl = el('empty');
 const summaryEl = el('summary');
 const tableEl = el('tbl');
+const aiEvalBtn = el('aiEvalBtn');
+const evalStatusEl = el('evalStatus');
 let profiles = [];
 let scores = {};
 let aiEvals = {};
@@ -173,6 +176,66 @@ function initHeaderSort() {
 el('tabAll').addEventListener('click', () => setTab('all'));
 el('tabShort').addEventListener('click', () => setTab('shortlist'));
 initHeaderSort();
+// The set of candidates the AI-Evaluate button acts on: the shortlist when that
+// tab is active, otherwise every extracted profile.
+function viewUrls() {
+    return tab === 'shortlist' ? profiles.filter((u) => shortlist.has(u)) : profiles.slice();
+}
+function setEvalStatus(text) {
+    evalStatusEl.textContent = text;
+}
+// Kick off AI evaluation from the dashboard. Reads the same DeepSeek key/model
+// and job-description form data the popup persists to storage, then hands the
+// work to the background engine (which persists results to storage.local, so
+// they flow back here live via the storage.onChanged listener below).
+async function startEval() {
+    const urls = viewUrls();
+    if (urls.length === 0) {
+        setEvalStatus('No candidates to evaluate.');
+        return;
+    }
+    const cfg = (await chrome.storage.local.get(['aiKey', 'aiModel', 'formData']));
+    const apiKey = (cfg.aiKey || '').trim();
+    if (!apiKey) {
+        setEvalStatus('Add your DeepSeek API key in the extension popup ⚙️ settings first.');
+        return;
+    }
+    const fd = cfg.formData || {};
+    const jd = (fd.jd || fd.keywords || fd.booleanRule || '').trim();
+    if (!jd) {
+        setEvalStatus('Add a job description or keywords in the extension popup first.');
+        return;
+    }
+    const model = cfg.aiModel === 'deepseek-reasoner' ? 'deepseek-reasoner' : 'deepseek-chat';
+    if (!confirm('Send ' +
+        urls.length +
+        ' profile(s) to DeepSeek (' +
+        model +
+        ') for AI evaluation?\n\nThis uses your API key and sends profile text to DeepSeek.')) {
+        return;
+    }
+    aiEvalBtn.disabled = true;
+    setEvalStatus('✦ Evaluating ' + urls.length + ' candidate(s)…');
+    chrome.runtime.sendMessage({ type: MESSAGE.AI_EVALUATE, data: { profiles: urls, jd, apiKey, model } }, (response) => {
+        if (!response || response.status !== 'started') {
+            aiEvalBtn.disabled = false;
+            setEvalStatus('❌ Failed to start: ' + (response?.error || 'unknown'));
+        }
+    });
+}
+aiEvalBtn.addEventListener('click', () => void startEval());
+// Progress/completion come back from the background engine. Rendered results
+// arrive through storage.onChanged (aiEvals); here we only drive the status text
+// and re-enable the button.
+chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.type === MESSAGE.AI_EVAL_PROGRESS) {
+        setEvalStatus('✦ Evaluating ' + String(msg.currentIndex) + '/' + String(msg.total) + '…');
+    }
+    else if (msg.type === MESSAGE.AI_EVAL_COMPLETE) {
+        aiEvalBtn.disabled = false;
+        setEvalStatus('✦ AI evaluation complete.');
+    }
+});
 // Stay in sync when the popup (or another dashboard tab) changes the data.
 chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local')

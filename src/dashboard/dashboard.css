@@ -119,6 +119,38 @@ h1 {
   border-color: var(--accent);
   color: var(--on-accent);
 }
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.tbtn {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 550;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+  cursor: pointer;
+  transition:
+    filter 0.15s,
+    opacity 0.15s;
+}
+.tbtn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+.tbtn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.eval-status {
+  font-size: 13px;
+  color: var(--muted);
+}
 .summary {
   font-size: 13px;
   color: var(--muted);

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Gazy — LinkedIn Profile Finder",
-  "version": "1.8.1",
+  "version": "1.9.0",
   "description": "Extract LinkedIn profile URLs, score them against job descriptions, and export results.",
   "permissions": ["activeTab", "storage", "scripting", "tabs", "clipboard-write"],
   "host_permissions": ["https://www.linkedin.com/*", "https://api.deepseek.com/*"],

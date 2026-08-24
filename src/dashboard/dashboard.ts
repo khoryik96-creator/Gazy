@@ -1,6 +1,7 @@
 import { scoreEntry } from '../shared/scoreView.js';
 import { normalizeUiTheme } from '../shared/themes.js';
-import type { ScoresMap, AiEvalMap } from '../shared/types.js';
+import { MESSAGE } from '../shared/constants.js';
+import type { ScoresMap, AiEvalMap, AiModel } from '../shared/types.js';
 
 // Full-page dashboard. Reads the same chrome.storage.local data the popup
 // writes (profiles, profileScores, aiEvals, shortlist) and shows it in a roomy,
@@ -26,6 +27,8 @@ const tbody = el<HTMLTableSectionElement>('tbody');
 const emptyEl = el<HTMLDivElement>('empty');
 const summaryEl = el<HTMLDivElement>('summary');
 const tableEl = el<HTMLTableElement>('tbl');
+const aiEvalBtn = el<HTMLButtonElement>('aiEvalBtn');
+const evalStatusEl = el<HTMLSpanElement>('evalStatus');
 
 let profiles: string[] = [];
 let scores: ScoresMap = {};
@@ -211,6 +214,90 @@ function initHeaderSort(): void {
 el<HTMLButtonElement>('tabAll').addEventListener('click', () => setTab('all'));
 el<HTMLButtonElement>('tabShort').addEventListener('click', () => setTab('shortlist'));
 initHeaderSort();
+
+// The set of candidates the AI-Evaluate button acts on: the shortlist when that
+// tab is active, otherwise every extracted profile.
+function viewUrls(): string[] {
+  return tab === 'shortlist' ? profiles.filter((u) => shortlist.has(u)) : profiles.slice();
+}
+
+function setEvalStatus(text: string): void {
+  evalStatusEl.textContent = text;
+}
+
+// Kick off AI evaluation from the dashboard. Reads the same DeepSeek key/model
+// and job-description form data the popup persists to storage, then hands the
+// work to the background engine (which persists results to storage.local, so
+// they flow back here live via the storage.onChanged listener below).
+async function startEval(): Promise<void> {
+  const urls = viewUrls();
+  if (urls.length === 0) {
+    setEvalStatus('No candidates to evaluate.');
+    return;
+  }
+
+  const cfg = (await chrome.storage.local.get(['aiKey', 'aiModel', 'formData'])) as unknown as {
+    aiKey?: string;
+    aiModel?: string;
+    formData?: { jd?: string; keywords?: string; booleanRule?: string };
+  };
+
+  const apiKey = (cfg.aiKey || '').trim();
+  if (!apiKey) {
+    setEvalStatus('Add your DeepSeek API key in the extension popup ⚙️ settings first.');
+    return;
+  }
+
+  const fd = cfg.formData || {};
+  const jd = (fd.jd || fd.keywords || fd.booleanRule || '').trim();
+  if (!jd) {
+    setEvalStatus('Add a job description or keywords in the extension popup first.');
+    return;
+  }
+
+  const model: AiModel =
+    cfg.aiModel === 'deepseek-reasoner' ? 'deepseek-reasoner' : 'deepseek-chat';
+
+  if (
+    !confirm(
+      'Send ' +
+        urls.length +
+        ' profile(s) to DeepSeek (' +
+        model +
+        ') for AI evaluation?\n\nThis uses your API key and sends profile text to DeepSeek.',
+    )
+  ) {
+    return;
+  }
+
+  aiEvalBtn.disabled = true;
+  setEvalStatus('✦ Evaluating ' + urls.length + ' candidate(s)…');
+  chrome.runtime.sendMessage(
+    { type: MESSAGE.AI_EVALUATE, data: { profiles: urls, jd, apiKey, model } },
+    (response?: { status?: string; error?: string }) => {
+      if (!response || response.status !== 'started') {
+        aiEvalBtn.disabled = false;
+        setEvalStatus('❌ Failed to start: ' + (response?.error || 'unknown'));
+      }
+    },
+  );
+}
+
+aiEvalBtn.addEventListener('click', () => void startEval());
+
+// Progress/completion come back from the background engine. Rendered results
+// arrive through storage.onChanged (aiEvals); here we only drive the status text
+// and re-enable the button.
+chrome.runtime.onMessage.addListener(
+  (msg: { type?: string; currentIndex?: number; total?: number }) => {
+    if (msg.type === MESSAGE.AI_EVAL_PROGRESS) {
+      setEvalStatus('✦ Evaluating ' + String(msg.currentIndex) + '/' + String(msg.total) + '…');
+    } else if (msg.type === MESSAGE.AI_EVAL_COMPLETE) {
+      aiEvalBtn.disabled = false;
+      setEvalStatus('✦ AI evaluation complete.');
+    }
+  },
+);
 
 // Stay in sync when the popup (or another dashboard tab) changes the data.
 chrome.storage.onChanged.addListener((changes, area) => {
