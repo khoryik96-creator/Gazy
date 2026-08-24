@@ -7,59 +7,161 @@
     <link rel="stylesheet" href="dashboard.css" />
   </head>
   <body>
-    <div class="wrap">
-      <header class="dash-header">
-        <h1>🔍 Gazy Dashboard</h1>
-        <div class="tabs">
-          <button id="tabAll" class="tab active">All results</button>
-          <button id="tabShort" class="tab">⭐ Shortlist</button>
+    <div class="dash-layout">
+      <!-- ============ Left rail: search criteria, templates, settings ============ -->
+      <aside class="sidebar">
+        <div class="side-brand">
+          <span>🔍</span><span>Gazy<small>LinkedIn sourcing</small></span>
         </div>
-      </header>
 
-      <div id="folderBar" class="folder-bar"></div>
+        <section class="side-sec">
+          <div class="side-field">
+            <label class="side-lab" for="jdInput">Job description</label>
+            <textarea
+              id="jdInput"
+              class="side-inp"
+              rows="4"
+              placeholder="Paste the job description…"
+            ></textarea>
+          </div>
+          <div class="side-field">
+            <label class="side-lab" for="keywordsInput">Keywords</label>
+            <input
+              type="text"
+              id="keywordsInput"
+              class="side-inp"
+              placeholder="e.g. React AWS TypeScript"
+            />
+          </div>
+          <div class="side-field">
+            <label class="side-lab" for="booleanRule">Boolean filter</label>
+            <input
+              type="text"
+              id="booleanRule"
+              class="side-inp mono"
+              placeholder='"React" AND "AWS"'
+            />
+          </div>
+          <div class="side-field">
+            <label class="side-lab" for="countryFilter">Location</label>
+            <input type="text" id="countryFilter" class="side-inp" placeholder="United States" />
+          </div>
+          <button id="searchBtn" class="tbtn block">🔎 Search LinkedIn</button>
+          <span id="searchStatus" class="side-status"></span>
+        </section>
 
-      <div class="toolbar">
-        <button id="scoreBtn" class="tbtn">⭐ Score</button>
-        <button id="aiEvalBtn" class="tbtn">✦ AI Evaluate</button>
-        <button id="exportBtn" class="tbtn ghost">⬇ Export CSV</button>
-        <button id="renameFolderBtn" class="tbtn ghost" style="display: none">✎ Rename</button>
-        <button id="deleteFolderBtn" class="tbtn ghost" style="display: none">
-          🗑 Delete folder
-        </button>
-        <span id="evalStatus" class="eval-status"></span>
-      </div>
+        <details class="side-sec side-details">
+          <summary>Templates</summary>
+          <div class="side-field" style="margin-top: 10px">
+            <select id="templateSelect" class="side-inp">
+              <option value="">— Load template —</option>
+            </select>
+          </div>
+          <div class="tmpl-actions">
+            <button id="saveTemplateBtn" class="tbtn ghost sm" title="Save current inputs">
+              💾 Save
+            </button>
+            <button id="loadTemplateBtn" class="tbtn ghost sm" title="Load selected">
+              📂 Load
+            </button>
+            <button id="deleteTemplateBtn" class="tbtn ghost sm" title="Delete selected">🗑️</button>
+          </div>
+        </details>
 
-      <div id="bulkBar" class="bulk-bar" style="display: none">
-        <span id="bulkCount" class="bulk-count">0 selected</span>
-        <button id="bulkShortlist" class="tbtn">⭐ Add to shortlist</button>
-        <button id="bulkUnshortlist" class="tbtn ghost">Remove from shortlist</button>
-        <button id="bulkFolder" class="tbtn ghost">🏷 Add to folder</button>
-        <button id="bulkClear" class="tbtn ghost">Clear selection</button>
-      </div>
+        <details class="side-sec side-details">
+          <summary>Settings</summary>
+          <div class="side-field" style="margin-top: 10px">
+            <label class="side-lab" for="themeSelect">Theme</label>
+            <select id="themeSelect" class="side-inp"></select>
+          </div>
+          <div class="side-field">
+            <label class="side-lab" for="scanPages">Pages to scan — ~10 candidates per page</label>
+            <input
+              type="number"
+              id="scanPages"
+              class="side-inp"
+              min="1"
+              max="10"
+              step="1"
+              value="10"
+            />
+          </div>
+          <div class="side-field">
+            <label class="side-lab" for="aiKey"
+              >DeepSeek API key — stored only on this device</label
+            >
+            <input
+              type="password"
+              id="aiKey"
+              class="side-inp"
+              placeholder="sk-…"
+              autocomplete="off"
+            />
+          </div>
+          <div class="side-field">
+            <span class="side-lab">AI model</span>
+            <div class="model-toggles">
+              <label class="toggle"><input type="checkbox" id="aiFast" /> ⚡ Fast</label>
+              <label class="toggle"><input type="checkbox" id="aiSmart" /> 🧠 Smarter</label>
+            </div>
+          </div>
+        </details>
+      </aside>
 
-      <div id="summary" class="summary"></div>
+      <!-- ============ Main: results workspace ============ -->
+      <main class="dash-main">
+        <header class="main-head">
+          <h1>Candidates</h1>
+          <div class="tabs">
+            <button id="tabAll" class="tab active">All results</button>
+            <button id="tabShort" class="tab">⭐ Shortlist</button>
+          </div>
+        </header>
 
-      <div class="table-scroll">
-        <table id="tbl">
-          <thead>
-            <tr>
-              <th class="sel-col"><input type="checkbox" id="selectAll" title="Select all" /></th>
-              <th class="star-col"></th>
-              <th data-sort="name">Candidate</th>
-              <th data-sort="kw" class="num">Score</th>
-              <th data-sort="ai" class="num">AI</th>
-              <th class="fld-col">Folders</th>
-              <th data-sort="location">Location</th>
-            </tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
-      </div>
+        <div id="folderBar" class="folder-bar"></div>
 
-      <div id="empty" class="empty" style="display: none">
-        No candidates yet. Run a search and score in the extension popup, then reopen this
-        dashboard.
-      </div>
+        <div class="toolbar">
+          <button id="scoreBtn" class="tbtn">⭐ Score</button>
+          <button id="aiEvalBtn" class="tbtn">✦ AI Evaluate</button>
+          <button id="exportBtn" class="tbtn ghost">⬇ Export CSV</button>
+          <button id="renameFolderBtn" class="tbtn ghost" style="display: none">✎ Rename</button>
+          <button id="deleteFolderBtn" class="tbtn ghost" style="display: none">
+            🗑 Delete folder
+          </button>
+          <span id="evalStatus" class="eval-status"></span>
+        </div>
+
+        <div id="bulkBar" class="bulk-bar" style="display: none">
+          <span id="bulkCount" class="bulk-count">0 selected</span>
+          <button id="bulkShortlist" class="tbtn">⭐ Add to shortlist</button>
+          <button id="bulkUnshortlist" class="tbtn ghost">Remove from shortlist</button>
+          <button id="bulkFolder" class="tbtn ghost">🏷 Add to folder</button>
+          <button id="bulkClear" class="tbtn ghost">Clear selection</button>
+        </div>
+
+        <div id="summary" class="summary"></div>
+
+        <div class="table-scroll">
+          <table id="tbl">
+            <thead>
+              <tr>
+                <th class="sel-col"><input type="checkbox" id="selectAll" title="Select all" /></th>
+                <th class="star-col"></th>
+                <th data-sort="name">Candidate</th>
+                <th data-sort="kw" class="num">Score</th>
+                <th data-sort="ai" class="num">AI</th>
+                <th class="fld-col">Folders</th>
+                <th data-sort="location">Location</th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+
+        <div id="empty" class="empty" style="display: none">
+          No candidates yet. Fill in the criteria on the left and hit Search LinkedIn.
+        </div>
+      </main>
     </div>
     <script type="module" src="dashboard.js"></script>
   </body>

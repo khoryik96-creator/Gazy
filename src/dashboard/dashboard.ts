@@ -14,6 +14,7 @@ import {
   folderCount,
 } from '../shared/folders.js';
 import { openFolderMenu, openFolderPickMenu, closeFolderMenu } from './folderMenu.js';
+import { initSidebar } from './sidebar.js';
 import { getScoringKeywords } from '../shared/keywordExtraction.js';
 import { compileBooleanRule } from '../shared/booleanExpression.js';
 import { largeRunWarning } from '../shared/runGuard.js';
@@ -513,14 +514,14 @@ async function startEval(): Promise<void> {
 
   const apiKey = (cfg.aiKey || '').trim();
   if (!apiKey) {
-    setEvalStatus('Add your DeepSeek API key in the extension popup ⚙️ settings first.');
+    setEvalStatus('Add your DeepSeek API key in Settings (left rail) first.');
     return;
   }
 
   const fd = cfg.formData || {};
   const jd = (fd.jd || fd.keywords || fd.booleanRule || '').trim();
   if (!jd) {
-    setEvalStatus('Add a job description or keywords in the extension popup first.');
+    setEvalStatus('Add a job description or keywords in the left rail first.');
     return;
   }
 
@@ -577,7 +578,7 @@ async function startScoring(): Promise<void> {
     jd: fd.jd,
   });
   if (keywords.length === 0) {
-    setEvalStatus('Add a job description, Boolean rule, or keywords in the extension popup first.');
+    setEvalStatus('Add a job description, Boolean rule, or keywords in the left rail first.');
     return;
   }
 
@@ -654,4 +655,5 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
+initSidebar();
 void load().then(render);
