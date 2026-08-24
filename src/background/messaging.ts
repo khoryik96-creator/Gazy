@@ -26,10 +26,16 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, sender, sendRespo
       return false;
 
     case MESSAGE.START_SCORING:
-      startScoring(message.data as ScoringRequest)
-        .then(() => sendResponse({ status: 'started' }))
-        .catch((err: Error) => sendResponse({ status: 'error', error: err.message }));
-      return true;
+      // Ack synchronously: the engine kicks off a detached loop and returns at
+      // once, so we don't hold the message channel open across a long run (which
+      // an MV3 worker restart would break → "Failed to start: unknown").
+      try {
+        startScoring(message.data as ScoringRequest);
+        sendResponse({ status: 'started' });
+      } catch (err) {
+        sendResponse({ status: 'error', error: (err as Error).message });
+      }
+      return false;
 
     case MESSAGE.STOP_SCORING:
       stopScoring();
@@ -45,10 +51,16 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, sender, sendRespo
       return true;
 
     case MESSAGE.AI_EVALUATE:
-      startAiEval(message.data as AiEvalRequest)
-        .then(() => sendResponse({ status: 'started' }))
-        .catch((err: Error) => sendResponse({ status: 'error', error: err.message }));
-      return true;
+      // Ack synchronously (see START_SCORING): the engine detaches its run, so the
+      // channel isn't held open across a long, network-bound evaluation that a
+      // worker restart would break → "Failed to start: unknown".
+      try {
+        startAiEval(message.data as AiEvalRequest);
+        sendResponse({ status: 'started' });
+      } catch (err) {
+        sendResponse({ status: 'error', error: (err as Error).message });
+      }
+      return false;
 
     default:
       return false;
