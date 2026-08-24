@@ -1,7 +1,7 @@
 import { state } from './state.js';
 import { getStorage } from './storage.js';
 import { renderProfiles } from './render.js';
-import { initTheme } from './theme.js';
+import { initThemeManager } from './themeManager.js';
 import { initFormPersistence } from './formData.js';
 import { initTemplates } from './templates.js';
 import { initButtons } from './events.js';
@@ -22,7 +22,7 @@ async function init() {
         state.aiEvals = aiEvals || {};
         renderProfiles();
     }
-    await initTheme();
+    await initThemeManager();
     initFormPersistence();
     initTemplates();
     initButtons();

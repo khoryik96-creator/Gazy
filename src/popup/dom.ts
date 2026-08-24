@@ -22,7 +22,7 @@ export const dom = {
   etaLabel: id<HTMLSpanElement>('etaLabel'),
   hideZeroCheck: id<HTMLInputElement>('hideZero'),
   shortlistOnlyCheck: id<HTMLInputElement>('shortlistOnly'),
-  themeToggle: id<HTMLButtonElement>('themeToggle'),
+  themeSelect: id<HTMLSelectElement>('themeSelect'),
   dashboardBtn: id<HTMLButtonElement>('dashboardBtn'),
   templateSelect: id<HTMLSelectElement>('templateSelect'),
   saveTemplateBtn: id<HTMLButtonElement>('saveTemplateBtn'),

@@ -1,4 +1,5 @@
 import { scoreEntry } from '../shared/scoreView.js';
+import { normalizeUiTheme } from '../shared/themes.js';
 const el = (id) => document.getElementById(id);
 const tbody = el('tbody');
 const emptyEl = el('empty');
@@ -17,13 +18,13 @@ async function load() {
         'profileScores',
         'aiEvals',
         'shortlist',
-        'theme',
+        'uiTheme',
     ]));
     profiles = data.profiles || [];
     scores = data.profileScores || {};
     aiEvals = data.aiEvals || {};
     shortlist = new Set(data.shortlist || []);
-    document.body.classList.toggle('dark', data.theme === 'dark');
+    document.body.dataset.theme = normalizeUiTheme(data.uiTheme);
 }
 function buildRows() {
     return profiles.map((url) => {
@@ -176,7 +177,11 @@ initHeaderSort();
 chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local')
         return;
-    if (changes.profiles || changes.profileScores || changes.aiEvals || changes.shortlist) {
+    if (changes.profiles ||
+        changes.profileScores ||
+        changes.aiEvals ||
+        changes.shortlist ||
+        changes.uiTheme) {
         void load().then(render);
     }
 });

@@ -21,7 +21,7 @@ export const dom = {
     etaLabel: id('etaLabel'),
     hideZeroCheck: id('hideZero'),
     shortlistOnlyCheck: id('shortlistOnly'),
-    themeToggle: id('themeToggle'),
+    themeSelect: id('themeSelect'),
     dashboardBtn: id('dashboardBtn'),
     templateSelect: id('templateSelect'),
     saveTemplateBtn: id('saveTemplateBtn'),
