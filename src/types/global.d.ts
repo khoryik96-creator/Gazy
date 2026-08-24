@@ -3,12 +3,12 @@
 // ES imports (Chrome can't declare content_scripts as modules).
 
 interface GazyExtractor {
-  extractProfiles(): string[];
+  collectProfiles(): string[];
   getExtractedURLs(): string[];
 }
 
 interface GazyAutoscroll {
-  run(extractProfiles: () => string[]): void;
+  run(collectProfiles: () => string[]): void;
 }
 
 interface GazyNamespace {

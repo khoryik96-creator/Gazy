@@ -32,7 +32,11 @@ window.__gazy.extractor = (() => {
     return document;
   }
 
-  function extractProfiles(): string[] {
+  // Scrapes the CURRENT page's profile URLs from the DOM. No messaging here: the
+  // caller (content/index.ts) reports the result to the background, which owns
+  // accumulation across pages and deciding what to tell the popup. The
+  // empty-vs-nonempty decision (error vs results) is the background's too.
+  function collectProfiles(): string[] {
     if (isExtracting) return extractedURLs;
     isExtracting = true;
 
@@ -52,16 +56,6 @@ window.__gazy.extractor = (() => {
     }
 
     extractedURLs = [...new Set(profileLinks)];
-
-    if (extractedURLs.length === 0) {
-      void chrome.runtime.sendMessage({
-        type: 'EXTRACTION_ERROR',
-        data: 'No profiles found. Try refreshing or scrolling manually.',
-      });
-    } else {
-      void chrome.runtime.sendMessage({ type: 'PROFILES_FOUND', data: extractedURLs });
-    }
-
     isExtracting = false;
     return extractedURLs;
   }
@@ -70,5 +64,5 @@ window.__gazy.extractor = (() => {
     return extractedURLs;
   }
 
-  return { extractProfiles, getExtractedURLs };
+  return { collectProfiles, getExtractedURLs };
 })();
