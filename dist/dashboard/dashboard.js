@@ -6,6 +6,7 @@ import { openFolderMenu, closeFolderMenu } from './folderMenu.js';
 import { getScoringKeywords } from '../shared/keywordExtraction.js';
 import { compileBooleanRule } from '../shared/booleanExpression.js';
 import { largeRunWarning } from '../shared/runGuard.js';
+import { buildCandidateCsv, exportFilename } from '../shared/candidateExport.js';
 const el = (id) => document.getElementById(id);
 const tbody = el('tbody');
 const emptyEl = el('empty');
@@ -13,6 +14,7 @@ const summaryEl = el('summary');
 const tableEl = el('tbl');
 const scoreBtn = el('scoreBtn');
 const aiEvalBtn = el('aiEvalBtn');
+const exportBtn = el('exportBtn');
 const evalStatusEl = el('evalStatus');
 const folderBar = el('folderBar');
 const renameFolderBtn = el('renameFolderBtn');
@@ -273,6 +275,33 @@ function setView(next) {
     closeFolderMenu();
     render();
 }
+/** Human name for the current view, used in the export filename and status. */
+function viewScopeName() {
+    return view.kind === 'folder' ? view.name : view.kind;
+}
+// Export the candidates in the current view (all / shortlist / a folder) to CSV:
+// name, URL, score, location, plus AI score and folders when present.
+function exportCsv() {
+    const rows = buildRows().filter((r) => inView(r.url));
+    if (rows.length === 0) {
+        setEvalStatus('No candidates to export.');
+        return;
+    }
+    const csv = buildCandidateCsv(rows.map((r) => ({
+        url: r.url,
+        score: r.kw,
+        ai: r.ai,
+        location: r.location,
+        folders: r.folders,
+    })));
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = exportFilename(viewScopeName());
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setEvalStatus('⬇ Exported ' + rows.length + ' candidate(s) from “' + viewScopeName() + '”.');
+}
 function initHeaderSort() {
     document.querySelectorAll('th[data-sort]').forEach((th) => {
         th.addEventListener('click', () => {
@@ -291,6 +320,7 @@ el('tabAll').addEventListener('click', () => setView({ kind: 'all' }));
 el('tabShort').addEventListener('click', () => setView({ kind: 'shortlist' }));
 renameFolderBtn.addEventListener('click', () => void renameActiveFolder());
 deleteFolderBtn.addEventListener('click', () => void deleteActiveFolder());
+exportBtn.addEventListener('click', exportCsv);
 initHeaderSort();
 function setEvalStatus(text) {
     evalStatusEl.textContent = text;
