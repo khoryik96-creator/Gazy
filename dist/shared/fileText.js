@@ -20,7 +20,13 @@ export function decodeXmlEntities(s) {
  */
 export function docxXmlToText(xml) {
     const withBreaks = xml
-        .replace(/<w:tab\b[^>]*\/?>/g, '\t')
+        // Drop text the author removed (tracked-change deletions) and field
+        // instruction codes (e.g. HYPERLINK/TOC) — both carry text we must not keep.
+        .replace(/<w:delText\b[^>]*>[\s\S]*?<\/w:delText>/g, '')
+        .replace(/<w:instrText\b[^>]*>[\s\S]*?<\/w:instrText>/g, '')
+        // Only a bare inline tab (<w:tab/>) is a real tab; <w:tab w:val=… w:pos=…/>
+        // inside <w:tabs> is a tab-stop definition, not visible text.
+        .replace(/<w:tab\s*\/>/g, '\t')
         .replace(/<w:br\b[^>]*\/?>/g, '\n')
         .replace(/<\/w:p>/g, '\n');
     const text = decodeXmlEntities(withBreaks.replace(/<[^>]+>/g, ''));
@@ -57,7 +63,10 @@ export function readPdfString(s, start) {
                 i += 2;
             }
             else if (d === '\n') {
-                i += 2; // line continuation
+                i += 2; // line continuation (LF)
+            }
+            else if (d === '\r') {
+                i += s[i + 2] === '\n' ? 3 : 2; // line continuation (CR or CRLF)
             }
             else if (d >= '0' && d <= '7') {
                 let oct = d;
@@ -99,6 +108,9 @@ export function readPdfString(s, start) {
  * (exact line breaks) is not recovered, which is fine for keyword extraction and
  * an editable JD box.
  */
+// A TJ kerning adjustment at least this negative marks an inter-word gap (units
+// are −1/1000 em; word spaces are typically a few hundred).
+const TJ_SPACE_THRESHOLD = -100;
 export function pdfContentToText(content) {
     let out = '';
     let i = 0;
@@ -113,6 +125,23 @@ export function pdfContentToText(content) {
                 out += ' ';
             i = next;
         }
+        else if (c === '<' && content[i + 1] === '<') {
+            // A dictionary (e.g. marked content /Span <</ActualText …>>) — skip it
+            // whole so its inner hex/text doesn't leak into the output.
+            const end = content.indexOf('>>', i + 2);
+            i = end === -1 ? n : end + 2;
+        }
+        else if (c === '<') {
+            const end = content.indexOf('>', i + 1);
+            if (end > i) {
+                out += decodePdfHexString(content.slice(i + 1, end));
+                if (!inArray)
+                    out += ' ';
+                i = end + 1;
+            }
+            else
+                i++;
+        }
         else if (c === '[') {
             inArray = true;
             i++;
@@ -122,16 +151,15 @@ export function pdfContentToText(content) {
             out += ' ';
             i++;
         }
-        else if (c === '<' && content[i + 1] !== '<') {
-            const end = content.indexOf('>', i);
-            if (end > i) {
-                out += decodePdfHexString(content.slice(i + 1, end));
-                if (!inArray)
-                    out += ' ';
-                i = end + 1;
-            }
-            else
-                i++;
+        else if (inArray && (c === '-' || c === '.' || (c >= '0' && c <= '9'))) {
+            // A positioning number between glyph runs; a large negative gap is a space.
+            let j = i + 1;
+            while (j < n && (content[j] === '.' || (content[j] >= '0' && content[j] <= '9')))
+                j++;
+            const num = parseFloat(content.slice(i, j));
+            if (!Number.isNaN(num) && num <= TJ_SPACE_THRESHOLD)
+                out += ' ';
+            i = j;
         }
         else {
             i++;

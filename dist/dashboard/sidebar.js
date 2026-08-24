@@ -72,7 +72,12 @@ export function initSidebar() {
         e.preventDefault();
         jdDrop.classList.add('drag');
     });
-    jdDrop.addEventListener('dragleave', () => jdDrop.classList.remove('drag'));
+    jdDrop.addEventListener('dragleave', (e) => {
+        // Only clear when the pointer actually leaves the drop zone — not when it
+        // crosses onto a child (the textarea), which would flicker the highlight.
+        if (!jdDrop.contains(e.relatedTarget))
+            jdDrop.classList.remove('drag');
+    });
     jdDrop.addEventListener('drop', (e) => {
         e.preventDefault();
         jdDrop.classList.remove('drag');

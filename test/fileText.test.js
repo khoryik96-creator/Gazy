@@ -28,6 +28,22 @@ test('docxXmlToText decodes entities inside text', () => {
   assert.equal(docxXmlToText(xml), 'R&D & Ops');
 });
 
+test('docxXmlToText drops tracked-change deletions and field codes', () => {
+  const xml =
+    '<w:p><w:r><w:t>Keep this</w:t></w:r>' +
+    '<w:del><w:r><w:delText> removed</w:delText></w:r></w:del>' +
+    '<w:r><w:instrText> HYPERLINK "http://x" </w:instrText></w:r>' +
+    '<w:r><w:t> and this</w:t></w:r></w:p>';
+  assert.equal(docxXmlToText(xml), 'Keep this and this');
+});
+
+test('docxXmlToText ignores tab-stop definitions, keeps inline tabs', () => {
+  const xml =
+    '<w:p><w:pPr><w:tabs><w:tab w:val="left" w:pos="720"/></w:tabs></w:pPr>' +
+    '<w:r><w:t>Go</w:t><w:tab/><w:t>AWS</w:t></w:r></w:p>';
+  assert.equal(docxXmlToText(xml), 'Go\tAWS');
+});
+
 test('readPdfString handles escapes, nesting and octal', () => {
   assert.deepEqual(readPdfString('(hello)', 0), { str: 'hello', next: 7 });
   assert.equal(readPdfString('(a\\(b\\)c)', 0).str, 'a(b)c');
@@ -35,14 +51,25 @@ test('readPdfString handles escapes, nesting and octal', () => {
   assert.equal(readPdfString('(A\\101)', 0).str, 'AA'); // \101 octal = 'A'
 });
 
-test('pdfContentToText extracts Tj and TJ text', () => {
-  const content = 'BT (Senior) Tj (Engineer) Tj ET [(Go)-250(AWS)] TJ';
-  assert.equal(pdfContentToText(content), 'Senior Engineer GoAWS');
+test('readPdfString treats backslash-CR/CRLF as a line continuation', () => {
+  assert.equal(readPdfString('(ab\\\r\ncd)', 0).str, 'abcd'); // CRLF
+  assert.equal(readPdfString('(ab\\\rcd)', 0).str, 'abcd'); // bare CR
 });
 
-test('pdfContentToText reads hex strings', () => {
-  // <48 69> = "Hi"
-  assert.equal(pdfContentToText('<4869> Tj'), 'Hi');
+test('pdfContentToText extracts Tj and TJ text with kerning spaces', () => {
+  const content = 'BT (Senior) Tj (Engineer) Tj ET [(Go)-250(AWS)] TJ';
+  assert.equal(pdfContentToText(content), 'Senior Engineer Go AWS');
+});
+
+test('pdfContentToText keeps small kerns tight but splits large gaps', () => {
+  assert.equal(pdfContentToText('[(Wa)-40(ter)] TJ'), 'Water'); // small kern, no space
+  assert.equal(pdfContentToText('[(one)-300(two)] TJ'), 'one two'); // large gap, space
+});
+
+test('pdfContentToText reads hex strings but skips << >> dicts', () => {
+  assert.equal(pdfContentToText('<4869> Tj'), 'Hi'); // <48 69> = "Hi"
+  // The ActualText dict must not leak; only the shown string survives.
+  assert.equal(pdfContentToText('/Span <</ActualText <00480049>>> BDC (Hi) Tj'), 'Hi');
 });
 
 test('collapseWhitespace tidies runs and blank lines', () => {
