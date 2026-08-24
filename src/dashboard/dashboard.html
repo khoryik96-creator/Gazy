@@ -29,12 +29,21 @@
         <span id="evalStatus" class="eval-status"></span>
       </div>
 
+      <div id="bulkBar" class="bulk-bar" style="display: none">
+        <span id="bulkCount" class="bulk-count">0 selected</span>
+        <button id="bulkShortlist" class="tbtn">⭐ Add to shortlist</button>
+        <button id="bulkUnshortlist" class="tbtn ghost">Remove from shortlist</button>
+        <button id="bulkFolder" class="tbtn ghost">🏷 Add to folder</button>
+        <button id="bulkClear" class="tbtn ghost">Clear selection</button>
+      </div>
+
       <div id="summary" class="summary"></div>
 
       <div class="table-scroll">
         <table id="tbl">
           <thead>
             <tr>
+              <th class="sel-col"><input type="checkbox" id="selectAll" title="Select all" /></th>
               <th class="star-col"></th>
               <th data-sort="name">Candidate</th>
               <th data-sort="kw" class="num">Score</th>

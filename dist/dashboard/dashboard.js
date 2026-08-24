@@ -1,8 +1,8 @@
 import { scoreEntry } from '../shared/scoreView.js';
 import { normalizeUiTheme } from '../shared/themes.js';
 import { MESSAGE } from '../shared/constants.js';
-import { emptyFolderStore, normalizeFolderStore, createFolder, renameFolder, deleteFolder, toggleMembership, foldersForUrl, folderCount, } from '../shared/folders.js';
-import { openFolderMenu, closeFolderMenu } from './folderMenu.js';
+import { emptyFolderStore, normalizeFolderStore, normalizeFolderName, createFolder, renameFolder, deleteFolder, toggleMembership, addMembership, foldersForUrl, folderCount, } from '../shared/folders.js';
+import { openFolderMenu, openFolderPickMenu, closeFolderMenu } from './folderMenu.js';
 import { getScoringKeywords } from '../shared/keywordExtraction.js';
 import { compileBooleanRule } from '../shared/booleanExpression.js';
 import { largeRunWarning } from '../shared/runGuard.js';
@@ -19,11 +19,20 @@ const evalStatusEl = el('evalStatus');
 const folderBar = el('folderBar');
 const renameFolderBtn = el('renameFolderBtn');
 const deleteFolderBtn = el('deleteFolderBtn');
+const selectAllEl = el('selectAll');
+const bulkBar = el('bulkBar');
+const bulkCountEl = el('bulkCount');
+const bulkShortlistBtn = el('bulkShortlist');
+const bulkUnshortlistBtn = el('bulkUnshortlist');
+const bulkFolderBtn = el('bulkFolder');
+const bulkClearBtn = el('bulkClear');
 let profiles = [];
 let scores = {};
 let aiEvals = {};
 let shortlist = new Set();
 let folders = emptyFolderStore();
+// Ephemeral row selection (not persisted) for bulk shortlist / folder actions.
+let selected = new Set();
 let view = { kind: 'all' };
 let sortKey = 'kw';
 let sortDir = -1; // default: highest score first
@@ -118,9 +127,30 @@ function sortRows(rows) {
 function render() {
     let rows = buildRows().filter((r) => inView(r.url));
     rows = sortRows(rows);
+    // Drop selections for candidates no longer in the list (e.g. after a new search).
+    const present = new Set(rows.map((r) => r.url));
+    for (const u of [...selected])
+        if (!present.has(u))
+            selected.delete(u);
     tbody.replaceChildren();
     for (const r of rows) {
         const tr = document.createElement('tr');
+        if (selected.has(r.url))
+            tr.className = 'sel';
+        const selTd = document.createElement('td');
+        const chk = document.createElement('input');
+        chk.type = 'checkbox';
+        chk.className = 'selchk';
+        chk.checked = selected.has(r.url);
+        chk.addEventListener('change', () => {
+            if (chk.checked)
+                selected.add(r.url);
+            else
+                selected.delete(r.url);
+            render();
+        });
+        selTd.appendChild(chk);
+        tr.appendChild(selTd);
         const starTd = document.createElement('td');
         const star = document.createElement('button');
         star.className = 'star' + (r.shortlisted ? ' on' : '');
@@ -167,7 +197,17 @@ function render() {
     el('tabShort').classList.toggle('active', view.kind === 'shortlist');
     renameFolderBtn.style.display = view.kind === 'folder' ? '' : 'none';
     deleteFolderBtn.style.display = view.kind === 'folder' ? '' : 'none';
+    syncSelectionUI(rows);
     updateHeaderArrows();
+}
+// Reflect the current selection in the header checkbox and the bulk action bar.
+function syncSelectionUI(rows) {
+    const selectedHere = rows.filter((r) => selected.has(r.url)).length;
+    selectAllEl.checked = rows.length > 0 && selectedHere === rows.length;
+    selectAllEl.indeterminate = selectedHere > 0 && selectedHere < rows.length;
+    const n = selected.size;
+    bulkBar.style.display = n > 0 ? '' : 'none';
+    bulkCountEl.textContent = n + ' selected';
 }
 // One cell per candidate: the folders it belongs to as pills, plus a 🏷 button
 // opening the assign popover.
@@ -316,11 +356,71 @@ function initHeaderSort() {
         });
     });
 }
+// ---- Bulk selection: select-all + add the selection to shortlist / a folder ----
+function toggleSelectAll() {
+    const urls = viewUrls();
+    if (selectAllEl.checked)
+        urls.forEach((u) => selected.add(u));
+    else
+        urls.forEach((u) => selected.delete(u));
+    render();
+}
+async function bulkSetShortlist(add) {
+    if (selected.size === 0)
+        return;
+    for (const u of selected) {
+        if (add)
+            shortlist.add(u);
+        else
+            shortlist.delete(u);
+    }
+    await chrome.storage.local.set({ shortlist: [...shortlist] });
+    setEvalStatus((add ? '⭐ Added ' : 'Removed ') +
+        selected.size +
+        ' candidate(s) ' +
+        (add ? 'to' : 'from') +
+        ' shortlist.');
+    render();
+}
+function bulkAddToFolder() {
+    if (selected.size === 0)
+        return;
+    openFolderPickMenu({
+        anchor: bulkFolderBtn,
+        store: folders,
+        count: selected.size,
+        onPick: (name) => void applyBulkFolder(name, false),
+        onCreate: (name) => void applyBulkFolder(name, true),
+    });
+}
+async function applyBulkFolder(rawName, create) {
+    const name = normalizeFolderName(rawName);
+    if (!name)
+        return;
+    let store = create ? createFolder(folders, name) : folders;
+    const count = selected.size;
+    for (const u of selected)
+        store = addMembership(store, name, u);
+    folders = store;
+    await persistFolders();
+    closeFolderMenu();
+    setEvalStatus('🏷 Added ' + count + ' candidate(s) to “' + name + '”.');
+    render();
+}
+function clearSelection() {
+    selected = new Set();
+    render();
+}
 el('tabAll').addEventListener('click', () => setView({ kind: 'all' }));
 el('tabShort').addEventListener('click', () => setView({ kind: 'shortlist' }));
 renameFolderBtn.addEventListener('click', () => void renameActiveFolder());
 deleteFolderBtn.addEventListener('click', () => void deleteActiveFolder());
 exportBtn.addEventListener('click', exportCsv);
+selectAllEl.addEventListener('change', toggleSelectAll);
+bulkShortlistBtn.addEventListener('click', () => void bulkSetShortlist(true));
+bulkUnshortlistBtn.addEventListener('click', () => void bulkSetShortlist(false));
+bulkFolderBtn.addEventListener('click', bulkAddToFolder);
+bulkClearBtn.addEventListener('click', clearSelection);
 initHeaderSort();
 function setEvalStatus(text) {
     evalStatusEl.textContent = text;

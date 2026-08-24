@@ -86,6 +86,14 @@ export function toggleMembership(store, name, url) {
         urls.splice(i, 1);
     return next;
 }
+/** Adds a candidate to a folder (idempotent). No-op for unknown folders or dupes. */
+export function addMembership(store, name, url) {
+    if (!store.order.includes(name) || store.members[name]?.includes(url))
+        return store;
+    const next = clone(store);
+    next.members[name].push(url);
+    return next;
+}
 /** The folders a given candidate belongs to, in display order. */
 export function foldersForUrl(store, url) {
     return store.order.filter((name) => store.members[name]?.includes(url));

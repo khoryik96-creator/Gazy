@@ -32,7 +32,7 @@ your status changes.
 > **patch** (x.y.Z) for fixes/tweaks, **minor** (x.Y.0) for a new user-facing
 > feature. `npm version <v> --no-git-tag-version` updates package.json + lock;
 > hand-edit `src/manifest.json` to match, then `npm run build` so `dist/manifest.json`
-> updates too. Current: **1.13.1**.
+> updates too. Current: **1.14.0**.
 
 > 🧱 **Every feature must be modular, efficient, and non-regressing** (owner's
 > standing rule, 2026-08-24). New work goes in its OWN file in the right layer
@@ -45,6 +45,7 @@ your status changes.
 
 ## Status log
 
+| 2026-08-24 | claude/multi-account-project-rcmfpz | BULK SELECT (v1.14.0): dashboard row checkboxes + select-all header (indeterminate), bulk bar → add/remove shortlist, add-to-folder via new openFolderPickMenu (click folder / create), clear. New pure folders.addMembership (idempotent, +test). Selection ephemeral, prunes on data change. | done |
 | 2026-08-24 | claude/multi-account-project-rcmfpz | FIX "Failed to start: unknown" (v1.13.1): startScoring/startAiEval no longer awaited across the whole run — split into sync kickoff (throws validation) + detached loop (runScoringLoop/runAiEvalLoop); messaging acks 'started' synchronously. MV3 worker recycling mid-run no longer drops the response (hit on dashboard long AI runs). | done |
 | 2026-08-24 | claude/multi-account-project-rcmfpz | FOLDER/VIEW CSV EXPORT (v1.13.0): shared/nameFormat (handleOf/prettyName/nameFromUrl, popup render now reuses it) + shared/candidateExport (buildCandidateRows/Csv/exportFilename, lean cols Name/URL/Score/Location +AI/Folders when present) both tested; dashboard "⬇ Export CSV" button exports the active view (all/shortlist/folder). | done |
 | 2026-08-24 | claude/multi-account-project-rcmfpz | LARGE-RUN GUARD (v1.12.1): shared/runGuard(+4 tests, isLargeRun/estimate/largeRunWarning, threshold 25) wired into all 4 Score/AI-Evaluate confirms (popup Score had none before) — warns on time+LinkedIn footprint (score) / API credits (ai) | done |
