@@ -9,9 +9,9 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'npm'
@@ -28,9 +28,9 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'npm'
@@ -38,11 +38,26 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
-      # Full Chromium (not headless_shell) so the extension can load.
+      # Cache the downloaded browser (~150MB) keyed on the lockfile, so it's only
+      # re-downloaded when @playwright/test changes — the biggest CI-minute cost.
+      - name: Cache Playwright browser
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      # Cache miss: download the full Chromium (not headless_shell) plus OS deps.
       - name: Install Playwright Chromium
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
 
+      # Cache hit: browser is restored; just ensure the OS libraries it needs.
+      - name: Install Playwright OS deps
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
       # Builds dist/ then runs the popup smoke tests. PW_CHROMIUM_PATH is left
-      # unset so Playwright uses the browser it just installed.
+      # unset so Playwright uses the browser from the cache/install above.
       - name: Popup smoke tests
         run: npm run test:e2e
