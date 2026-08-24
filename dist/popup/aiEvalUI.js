@@ -11,7 +11,7 @@ function requirementsText() {
 function setEvaluating(on) {
     state.isEvaluating = on;
     dom.aiEvalBtn.disabled = on;
-    dom.aiEvalBtn.textContent = on ? '✨ Evaluating…' : '✨ AI Evaluate';
+    dom.aiEvalBtn.textContent = on ? '✦ …' : '✦ AI';
 }
 export function initAiEvalButton() {
     dom.aiEvalBtn.addEventListener('click', () => {

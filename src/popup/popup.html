@@ -6,129 +6,109 @@
   </head>
   <body>
     <div class="container">
-      <div class="header">
-        <h1>🔍 Profile Finder</h1>
-        <div style="display: flex; gap: 6px">
-          <button id="dashboardBtn" class="btn-icon" title="Open dashboard in a new tab">⤢</button>
-          <button id="settingsToggle" class="btn-icon" title="Settings">⚙️</button>
+      <div class="top">
+        <div class="brand">
+          <span class="mark">🔍</span>
+          <span class="brand-name">Profile Finder<small>LinkedIn sourcing</small></span>
+        </div>
+        <div class="iconbar">
+          <button id="dashboardBtn" class="iconbtn" title="Open dashboard in a new tab">⤢</button>
+          <button id="settingsToggle" class="iconbtn" title="Settings">⚙</button>
         </div>
       </div>
 
       <div id="settingsPanel" class="settings-panel" style="display: none">
-        <div class="input-group">
-          <label for="themeSelect">Theme</label>
-          <select id="themeSelect" class="template-select"></select>
+        <div class="field">
+          <span class="lab">Theme</span>
+          <select id="themeSelect" class="inp select"></select>
         </div>
-        <div class="input-group">
-          <label for="aiKey">DeepSeek API key (stored only on this device):</label>
-          <input type="password" id="aiKey" placeholder="sk-..." autocomplete="off" />
+        <div class="field">
+          <span class="lab">DeepSeek API key — stored only on this device</span>
+          <input type="password" id="aiKey" class="inp" placeholder="sk-..." autocomplete="off" />
         </div>
         <div class="ai-model-row">
-          <span class="ai-model-label">AI model:</span>
+          <span class="ai-model-label">AI model</span>
           <label class="toggle"><input type="checkbox" id="aiFast" /> ⚡ Fast</label>
           <label class="toggle"><input type="checkbox" id="aiSmart" /> 🧠 Smarter</label>
         </div>
         <small class="hint"
-          >⚡ Fast = deepseek-chat (cheap). 🧠 Smarter = deepseek-reasoner. Profile text is sent to
-          DeepSeek when you click AI Evaluate.</small
+          >⚡ Fast = deepseek-chat · 🧠 Smarter = deepseek-reasoner. Profile text is sent to
+          DeepSeek on AI Evaluate.</small
         >
       </div>
 
       <div class="template-section">
-        <select id="templateSelect" class="template-select">
-          <option value="">-- Load Template --</option>
+        <select id="templateSelect" class="inp select">
+          <option value="">-- Load template --</option>
         </select>
         <div class="template-actions">
-          <button
-            id="saveTemplateBtn"
-            class="btn-small template-save"
-            title="Save current inputs as template"
-          >
-            💾 Save
-          </button>
-          <button
-            id="loadTemplateBtn"
-            class="btn-small template-load"
-            title="Load selected template"
-          >
-            📂 Load
-          </button>
-          <button
-            id="deleteTemplateBtn"
-            class="btn-small template-delete"
-            title="Delete selected template"
-          >
-            🗑️ Delete
-          </button>
+          <button id="saveTemplateBtn" class="btn-small" title="Save current inputs">💾</button>
+          <button id="loadTemplateBtn" class="btn-small" title="Load selected">📂</button>
+          <button id="deleteTemplateBtn" class="btn-small" title="Delete selected">🗑️</button>
         </div>
       </div>
 
-      <div class="input-group">
-        <label for="jdInput">Paste Job Description:</label>
-        <textarea id="jdInput" rows="4" placeholder="Paste the job description here..."></textarea>
+      <div class="field">
+        <span class="lab">Job description</span>
+        <textarea
+          id="jdInput"
+          class="inp area"
+          rows="3"
+          placeholder="Paste the job description…"
+        ></textarea>
       </div>
 
-      <div class="input-group">
-        <label for="keywordsInput">Or enter keywords manually:</label>
-        <input type="text" id="keywordsInput" placeholder="e.g., React AWS Product Manager" />
+      <div class="field">
+        <span class="lab">Keywords</span>
+        <input type="text" id="keywordsInput" class="inp" placeholder="e.g. React AWS TypeScript" />
       </div>
 
-      <div class="input-group">
-        <label for="booleanRule">Boolean Filter (Must Meet):</label>
-        <input type="text" id="booleanRule" placeholder="e.g., React AND (AWS OR GCP) NOT Intern" />
-        <small class="hint"
-          >💡 Use AND, OR, NOT (caps) and parentheses. Single words need no quotes; quote multi-word
-          phrases like "machine learning".</small
-        >
-      </div>
-
-      <div class="input-group">
-        <label for="countryFilter">Country / Location (Must Contain):</label>
-        <input type="text" id="countryFilter" placeholder="e.g., United States, UK, India" />
-        <small class="hint"
-          >🌍 Leave empty to skip. Profiles not containing this text get 0%.</small
-        >
-      </div>
-
-      <div class="button-group">
-        <button id="searchBtn" class="btn-primary">🔎 Search LinkedIn</button>
-        <button id="clearBtn" class="btn-secondary">Clear</button>
-      </div>
-
-      <div class="divider"></div>
-
-      <div class="results-header">
-        <span id="profileCount">0 profiles found</span>
-        <div style="display: flex; gap: 6px; flex-wrap: wrap">
-          <button id="scoreBtn" class="btn-small score">⭐ Score Profiles</button>
-          <button id="aiEvalBtn" class="btn-small ai">✨ AI Evaluate</button>
-          <button id="exportBtn" class="btn-small">📊 Export CSV</button>
-          <button id="copyAllBtn" class="btn-small">📋 Copy All</button>
+      <div class="two">
+        <div class="field">
+          <span class="lab">Boolean filter</span>
+          <input type="text" id="booleanRule" class="inp mono" placeholder='"React" AND "AWS"' />
+        </div>
+        <div class="field">
+          <span class="lab">Location</span>
+          <input type="text" id="countryFilter" class="inp" placeholder="United States" />
         </div>
       </div>
 
-      <div class="controls">
-        <label><input type="checkbox" id="hideZero" /> Hide 0%</label>
-        <label><input type="checkbox" id="shortlistOnly" /> ⭐ Shortlist only</label>
-        <button id="clearCacheBtn" class="btn-small" title="Clear cached profile data">
-          🧹 Clear Cache
-        </button>
+      <div class="actions">
+        <button id="searchBtn" class="btn-primary">🔎&nbsp; Search LinkedIn</button>
+        <button id="clearBtn" class="btn-ghost">Clear</button>
       </div>
 
-      <div id="progressArea" style="display: none">
+      <div class="resbar">
+        <span class="count" id="profileCount">0 candidates</span>
+        <div class="pills">
+          <button id="scoreBtn" class="pill solid score">⭐ Score</button>
+          <button id="aiEvalBtn" class="pill tint ai">✦ AI</button>
+          <button id="exportBtn" class="pill line">CSV</button>
+          <button id="copyAllBtn" class="pill line">Copy</button>
+        </div>
+      </div>
+
+      <div class="filters">
+        <label class="chipbox"><input type="checkbox" id="hideZero" /> Hide 0%</label>
+        <label class="chipbox"><input type="checkbox" id="shortlistOnly" /> ★ Shortlist only</label>
+        <button id="clearCacheBtn" class="chipbtn" title="Clear cached profile data">🧹</button>
+      </div>
+
+      <div id="progressArea" class="progress" style="display: none">
         <progress id="progressBar" value="0" max="100"></progress>
         <span id="progressLabel">0%</span>
         <span id="etaLabel">ETA: --</span>
       </div>
 
-      <div id="resultsContainer" class="results-container">
+      <div id="resultsContainer" class="list">
         <div class="empty-state">
-          <p>No profiles extracted yet.</p>
-          <p class="hint">Search for a JD to get started.</p>
+          <p>No candidates yet.</p>
+          <p class="hint">Paste a job description and hit Search.</p>
         </div>
       </div>
 
-      <div class="footer"><span class="status" id="status">Ready</span></div>
+      <div class="foot"><span class="dot"></span><span class="status" id="status">Ready</span></div>
     </div>
     <script type="module" src="index.js"></script>
   </body>

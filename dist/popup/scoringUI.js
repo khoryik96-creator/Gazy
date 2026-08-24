@@ -8,7 +8,7 @@ import { compileBooleanRule } from '../shared/booleanExpression.js';
 import { setStorage } from './storage.js';
 function enterScoringUI() {
     state.isScoring = true;
-    dom.scoreBtn.textContent = '⏹️ Stop';
+    dom.scoreBtn.textContent = '⏹ Stop';
     dom.scoreBtn.classList.add('stop');
     dom.progressArea.style.display = 'flex';
     dom.progressBar.value = 0;
@@ -16,7 +16,7 @@ function enterScoringUI() {
 }
 function exitScoringUI() {
     state.isScoring = false;
-    dom.scoreBtn.textContent = '⭐ Score Profiles';
+    dom.scoreBtn.textContent = '⭐ Score';
     dom.scoreBtn.classList.remove('stop');
     dom.progressArea.style.display = 'none';
 }

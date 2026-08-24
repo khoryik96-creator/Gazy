@@ -1,6 +1,6 @@
 /** The selectable UI themes. Applied as `data-theme` on <body>; styled in CSS. */
 export const UI_THEMES = ['ledger', 'beacon', 'nocturne'];
-export const DEFAULT_UI_THEME = 'ledger';
+export const DEFAULT_UI_THEME = 'beacon';
 /** Human labels for the theme picker. */
 export const UI_THEME_LABELS = {
     ledger: 'Ledger — clean light',
