@@ -15,14 +15,18 @@
         </div>
 
         <section class="side-sec">
-          <div class="side-field">
-            <label class="side-lab" for="jdInput">Job description</label>
+          <div class="side-field jd-field" id="jdDrop">
+            <div class="jd-lab-row">
+              <label class="side-lab" for="jdInput">Job description</label>
+              <button type="button" id="jdFileBtn" class="jd-attach">📎 Attach file</button>
+            </div>
             <textarea
               id="jdInput"
               class="side-inp"
               rows="4"
-              placeholder="Paste the job description…"
+              placeholder="Paste the job description — or drop a .txt / .docx / .pdf file here…"
             ></textarea>
+            <input type="file" id="jdFile" accept=".txt,.docx,.pdf" hidden />
           </div>
           <div class="side-field">
             <label class="side-lab" for="keywordsInput">Keywords</label>

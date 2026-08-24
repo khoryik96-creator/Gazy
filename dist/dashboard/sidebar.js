@@ -4,6 +4,7 @@ import { extractKeywordsFromJD } from '../shared/keywordExtraction.js';
 import { compileBooleanRule } from '../shared/booleanExpression.js';
 import { clampScanPages } from '../shared/pagination.js';
 import { DEFAULT_SCAN_PAGES, MAX_SCAN_PAGES } from '../shared/constants.js';
+import { readJdFile } from './fileImport.js';
 // The dashboard's left rail (Option A "Sidebar Console"). It owns the search
 // criteria, templates, and settings — persisting to the SAME storage keys the
 // popup uses (formData, templates, aiKey, aiModel, uiTheme, scanPages), so the
@@ -44,6 +45,41 @@ export function initSidebar() {
         });
     };
     [jd, keywords, boolean, country].forEach((input) => input.addEventListener('input', saveFormData));
+    // ---- Drop / attach a JD file (.txt / .docx / .pdf) ----
+    const jdDrop = el('jdDrop');
+    const jdFile = el('jdFile');
+    const jdFileBtn = el('jdFileBtn');
+    const importFile = (file) => {
+        setStatus('Reading “' + file.name + '”…');
+        void readJdFile(file)
+            .then((res) => {
+            if (res.text) {
+                jd.value = res.text;
+                saveFormData();
+            }
+            setStatus(res.warning ?? '✅ Loaded “' + file.name + '”.');
+        })
+            .catch((e) => setStatus('❌ ' + e.message));
+    };
+    jdFileBtn.addEventListener('click', () => jdFile.click());
+    jdFile.addEventListener('change', () => {
+        const file = jdFile.files?.[0];
+        if (file)
+            importFile(file);
+        jdFile.value = ''; // allow re-selecting the same file
+    });
+    jdDrop.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        jdDrop.classList.add('drag');
+    });
+    jdDrop.addEventListener('dragleave', () => jdDrop.classList.remove('drag'));
+    jdDrop.addEventListener('drop', (e) => {
+        e.preventDefault();
+        jdDrop.classList.remove('drag');
+        const file = e.dataTransfer?.files?.[0];
+        if (file)
+            importFile(file);
+    });
     // ---- Search precedence: manual keywords → Boolean rule → keywords from JD ----
     const searchQuery = () => {
         if (keywords.value.trim())

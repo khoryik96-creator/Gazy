@@ -32,7 +32,7 @@ your status changes.
 > **patch** (x.y.Z) for fixes/tweaks, **minor** (x.Y.0) for a new user-facing
 > feature. `npm version <v> --no-git-tag-version` updates package.json + lock;
 > hand-edit `src/manifest.json` to match, then `npm run build` so `dist/manifest.json`
-> updates too. Current: **1.15.0**.
+> updates too. Current: **1.16.0**.
 
 > 🧱 **Every feature must be modular, efficient, and non-regressing** (owner's
 > standing rule, 2026-08-24). New work goes in its OWN file in the right layer
@@ -45,6 +45,7 @@ your status changes.
 
 ## Status log
 
+| 2026-08-24 | claude/multi-account-project-rcmfpz | WIDER RAIL + JD FILE DROP (v1.16.0): sidebar widened (380px, bigger inputs/JD box). Drop or attach .txt/.docx/.pdf as the JD. New shared/fileText.ts (pure docxXmlToText/pdf content-stream parser +7 tests) + dashboard/fileImport.ts (zero-dep unzip DOCX + inflate PDF FlateDecode via DecompressionStream). .doc → friendly "save as docx/pdf" msg; scanned PDF → warn. Text lands in the editable JD box. | done |
 | 2026-08-24 | claude/multi-account-project-rcmfpz | OPTION A — SIDEBAR CONSOLE DASHBOARD (v1.15.0): dashboard is now a full workspace. New dashboard/sidebar.ts owns criteria (JD/keywords/Boolean/location), templates, settings (theme/pages/aiKey/model) — persists to the SAME storage keys as popup (formData/templates/aiKey/aiModel/uiTheme/scanPages), stays in sync. Search from dashboard runs in a fresh tab (searchSession newTab flag) so the dashboard isn't navigated away; sidebar shows SEARCH_PROGRESS. Two-column layout (sticky rail + results), responsive stack <820px. | done |
 | 2026-08-24 | claude/multi-account-project-rcmfpz | BULK SELECT (v1.14.0): dashboard row checkboxes + select-all header (indeterminate), bulk bar → add/remove shortlist, add-to-folder via new openFolderPickMenu (click folder / create), clear. New pure folders.addMembership (idempotent, +test). Selection ephemeral, prunes on data change. | done |
 | 2026-08-24 | claude/multi-account-project-rcmfpz | FIX "Failed to start: unknown" (v1.13.1): startScoring/startAiEval no longer awaited across the whole run — split into sync kickoff (throws validation) + detached loop (runScoringLoop/runAiEvalLoop); messaging acks 'started' synchronously. MV3 worker recycling mid-run no longer drops the response (hit on dashboard long AI runs). | done |

@@ -4,6 +4,7 @@ import { extractKeywordsFromJD } from '../shared/keywordExtraction.js';
 import { compileBooleanRule } from '../shared/booleanExpression.js';
 import { clampScanPages } from '../shared/pagination.js';
 import { DEFAULT_SCAN_PAGES, MAX_SCAN_PAGES } from '../shared/constants.js';
+import { readJdFile } from './fileImport.js';
 import type { AiModel, Template } from '../shared/types.js';
 
 // The dashboard's left rail (Option A "Sidebar Console"). It owns the search
@@ -54,6 +55,42 @@ export function initSidebar(): void {
   [jd, keywords, boolean, country].forEach((input) =>
     input.addEventListener('input', saveFormData),
   );
+
+  // ---- Drop / attach a JD file (.txt / .docx / .pdf) ----
+  const jdDrop = el<HTMLDivElement>('jdDrop');
+  const jdFile = el<HTMLInputElement>('jdFile');
+  const jdFileBtn = el<HTMLButtonElement>('jdFileBtn');
+
+  const importFile = (file: File): void => {
+    setStatus('Reading “' + file.name + '”…');
+    void readJdFile(file)
+      .then((res) => {
+        if (res.text) {
+          jd.value = res.text;
+          saveFormData();
+        }
+        setStatus(res.warning ?? '✅ Loaded “' + file.name + '”.');
+      })
+      .catch((e: Error) => setStatus('❌ ' + e.message));
+  };
+
+  jdFileBtn.addEventListener('click', () => jdFile.click());
+  jdFile.addEventListener('change', () => {
+    const file = jdFile.files?.[0];
+    if (file) importFile(file);
+    jdFile.value = ''; // allow re-selecting the same file
+  });
+  jdDrop.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    jdDrop.classList.add('drag');
+  });
+  jdDrop.addEventListener('dragleave', () => jdDrop.classList.remove('drag'));
+  jdDrop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    jdDrop.classList.remove('drag');
+    const file = e.dataTransfer?.files?.[0];
+    if (file) importFile(file);
+  });
 
   // ---- Search precedence: manual keywords → Boolean rule → keywords from JD ----
   const searchQuery = (): string => {
