@@ -63,23 +63,37 @@ async function readPdf(buf) {
     const bytes = new Uint8Array(buf);
     const latin1 = new TextDecoder('latin1').decode(bytes);
     const chunks = [];
-    // Walk every `stream … endstream` block. Inflate FlateDecode ones; take others
-    // as-is. Indices from the latin1 string map 1:1 to byte offsets.
-    const re = /stream\r?\n/g;
+    // Match the `stream` keyword only as a whole word — the negative lookbehind
+    // keeps it from firing on the `stream` inside `endstream`. Indices from the
+    // latin1 string map 1:1 to byte offsets.
+    const re = /(?<![A-Za-z])stream\r?\n/g;
     let m;
     while ((m = re.exec(latin1)) !== null) {
         const dataStart = m.index + m[0].length;
-        const endIdx = latin1.indexOf('endstream', dataStart);
-        if (endIdx === -1)
-            break;
-        let dataEnd = endIdx;
-        // Trim the EOL that precedes `endstream`.
-        if (latin1[dataEnd - 1] === '\n')
-            dataEnd--;
-        if (latin1[dataEnd - 1] === '\r')
-            dataEnd--;
-        const dictStart = Math.max(0, m.index - 400);
-        const isFlate = latin1.slice(dictStart, m.index).includes('/FlateDecode');
+        // The stream dictionary sits between this object's header and the keyword.
+        // Scan the whole object (not a fixed window) so a long dict can't hide the
+        // /Filter, and read the declared /Length to bound the stream precisely —
+        // scanning for `endstream` can false-match binary bytes inside the data.
+        const objStart = latin1.lastIndexOf('obj', m.index);
+        const dict = latin1.slice(objStart === -1 ? Math.max(0, m.index - 4000) : objStart, m.index);
+        const isFlate = dict.includes('/FlateDecode');
+        const lenM = /\/Length\s+(\d+)(?!\s+\d+\s+R)/.exec(dict); // ignore indirect /Length
+        let dataEnd = -1;
+        if (lenM) {
+            const end = dataStart + parseInt(lenM[1], 10);
+            if (end <= bytes.length)
+                dataEnd = end;
+        }
+        if (dataEnd === -1) {
+            const endIdx = latin1.indexOf('endstream', dataStart);
+            if (endIdx === -1)
+                break;
+            dataEnd = endIdx;
+            if (latin1[dataEnd - 1] === '\n')
+                dataEnd--;
+            if (latin1[dataEnd - 1] === '\r')
+                dataEnd--;
+        }
         const raw = bytes.subarray(dataStart, dataEnd);
         let content = null;
         if (isFlate) {
@@ -93,9 +107,11 @@ async function readPdf(buf) {
         else {
             content = latin1.slice(dataStart, dataEnd);
         }
-        if (content && content.includes('Tj'))
+        // Any of the text-showing operators means this stream carries page text.
+        if (content && /BT|Tj|TJ/.test(content))
             chunks.push(pdfContentToText(content));
-        re.lastIndex = endIdx + 9;
+        const endKw = latin1.indexOf('endstream', dataEnd);
+        re.lastIndex = endKw === -1 ? dataEnd + 1 : endKw + 'endstream'.length;
     }
     const text = collapseWhitespace(chunks.join('\n'));
     if (!text.trim()) {
