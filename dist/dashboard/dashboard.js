@@ -1,6 +1,8 @@
 import { scoreEntry } from '../shared/scoreView.js';
 import { normalizeUiTheme } from '../shared/themes.js';
 import { MESSAGE } from '../shared/constants.js';
+import { emptyFolderStore, normalizeFolderStore, createFolder, renameFolder, deleteFolder, toggleMembership, foldersForUrl, folderCount, } from '../shared/folders.js';
+import { openFolderMenu, closeFolderMenu } from './folderMenu.js';
 const el = (id) => document.getElementById(id);
 const tbody = el('tbody');
 const emptyEl = el('empty');
@@ -8,11 +10,15 @@ const summaryEl = el('summary');
 const tableEl = el('tbl');
 const aiEvalBtn = el('aiEvalBtn');
 const evalStatusEl = el('evalStatus');
+const folderBar = el('folderBar');
+const renameFolderBtn = el('renameFolderBtn');
+const deleteFolderBtn = el('deleteFolderBtn');
 let profiles = [];
 let scores = {};
 let aiEvals = {};
 let shortlist = new Set();
-let tab = 'all';
+let folders = emptyFolderStore();
+let view = { kind: 'all' };
 let sortKey = 'kw';
 let sortDir = -1; // default: highest score first
 async function load() {
@@ -21,13 +27,25 @@ async function load() {
         'profileScores',
         'aiEvals',
         'shortlist',
+        'folders',
         'uiTheme',
     ]));
     profiles = data.profiles || [];
     scores = data.profileScores || {};
     aiEvals = data.aiEvals || {};
     shortlist = new Set(data.shortlist || []);
+    folders = normalizeFolderStore(data.folders);
+    // A folder view whose folder was deleted elsewhere falls back to All.
+    if (view.kind === 'folder' && !folders.order.includes(view.name))
+        view = { kind: 'all' };
     document.body.dataset.theme = normalizeUiTheme(data.uiTheme);
+}
+function inView(url) {
+    if (view.kind === 'all')
+        return true;
+    if (view.kind === 'shortlist')
+        return shortlist.has(url);
+    return folders.members[view.name]?.includes(url) ?? false;
 }
 function buildRows() {
     return profiles.map((url) => {
@@ -68,6 +86,7 @@ function buildRows() {
             aiLabel,
             location: e?.location || '',
             shortlisted: shortlist.has(url),
+            folders: foldersForUrl(folders, url),
         };
     });
 }
@@ -91,9 +110,7 @@ function sortRows(rows) {
     });
 }
 function render() {
-    let rows = buildRows();
-    if (tab === 'shortlist')
-        rows = rows.filter((r) => r.shortlisted);
+    let rows = buildRows().filter((r) => inView(r.url));
     rows = sortRows(rows);
     tbody.replaceChildren();
     for (const r of rows) {
@@ -123,6 +140,7 @@ function render() {
         aiTd.className = 'num score-ai';
         aiTd.textContent = r.aiLabel;
         tr.appendChild(aiTd);
+        tr.appendChild(buildFolderCell(r));
         const locTd = document.createElement('td');
         locTd.textContent = r.location;
         tr.appendChild(locTd);
@@ -133,10 +151,58 @@ function render() {
     emptyEl.style.display = rows.length === 0 ? 'block' : 'none';
     tableEl.style.display = rows.length === 0 ? 'none' : '';
     summaryEl.textContent =
-        tab === 'shortlist'
+        view.kind === 'shortlist'
             ? shortCount + ' shortlisted candidate(s)'
-            : total + ' candidate(s) · ' + shortCount + ' shortlisted';
+            : view.kind === 'folder'
+                ? rows.length + ' candidate(s) in “' + view.name + '”'
+                : total + ' candidate(s) · ' + shortCount + ' shortlisted';
+    renderFolderBar();
+    el('tabAll').classList.toggle('active', view.kind === 'all');
+    el('tabShort').classList.toggle('active', view.kind === 'shortlist');
+    renameFolderBtn.style.display = view.kind === 'folder' ? '' : 'none';
+    deleteFolderBtn.style.display = view.kind === 'folder' ? '' : 'none';
     updateHeaderArrows();
+}
+// One cell per candidate: the folders it belongs to as pills, plus a 🏷 button
+// opening the assign popover.
+function buildFolderCell(r) {
+    const td = document.createElement('td');
+    td.className = 'fld-cell';
+    for (const name of r.folders) {
+        const pill = document.createElement('span');
+        pill.className = 'fld-pill';
+        pill.textContent = name;
+        td.appendChild(pill);
+    }
+    const btn = document.createElement('button');
+    btn.className = 'fld-add';
+    btn.textContent = '🏷';
+    btn.title = 'Assign to folders';
+    btn.addEventListener('click', () => openFolderMenu({
+        anchor: btn,
+        url: r.url,
+        store: folders,
+        onToggle: (name) => void assignToggle(name, r.url),
+        onCreate: (name) => void createAndAssign(name, r.url),
+    }));
+    td.appendChild(btn);
+    return td;
+}
+function renderFolderBar() {
+    folderBar.replaceChildren();
+    for (const name of folders.order) {
+        const chip = document.createElement('button');
+        chip.className =
+            'folder-chip' + (view.kind === 'folder' && view.name === name ? ' active' : '');
+        chip.textContent = name + ' (' + folderCount(folders, name) + ')';
+        chip.addEventListener('click', () => setView({ kind: 'folder', name }));
+        folderBar.appendChild(chip);
+    }
+    const add = document.createElement('button');
+    add.className = 'folder-chip new';
+    add.textContent = '＋ New folder';
+    add.addEventListener('click', () => void newFolder());
+    folderBar.appendChild(add);
 }
 function updateHeaderArrows() {
     document.querySelectorAll('th[data-sort]').forEach((th) => {
@@ -144,6 +210,9 @@ function updateHeaderArrows() {
         const base = th.textContent?.replace(/\s*[▲▼]$/, '') ?? '';
         th.textContent = base + (key === sortKey ? (sortDir === 1 ? ' ▲' : ' ▼') : '');
     });
+}
+async function persistFolders() {
+    await chrome.storage.local.set({ folders });
 }
 async function toggleStar(url) {
     if (shortlist.has(url))
@@ -153,10 +222,51 @@ async function toggleStar(url) {
     await chrome.storage.local.set({ shortlist: [...shortlist] });
     render();
 }
-function setTab(next) {
-    tab = next;
-    el('tabAll').classList.toggle('active', next === 'all');
-    el('tabShort').classList.toggle('active', next === 'shortlist');
+async function assignToggle(name, url) {
+    folders = toggleMembership(folders, name, url);
+    await persistFolders();
+    render();
+}
+async function createAndAssign(name, url) {
+    folders = toggleMembership(createFolder(folders, name), name.trim(), url);
+    await persistFolders();
+    closeFolderMenu();
+    render();
+}
+async function newFolder() {
+    const name = window.prompt('New folder name:')?.trim();
+    if (!name)
+        return;
+    const before = folders.order.length;
+    folders = createFolder(folders, name);
+    if (folders.order.length === before)
+        return; // blank or duplicate
+    await persistFolders();
+    setView({ kind: 'folder', name });
+}
+async function renameActiveFolder() {
+    if (view.kind !== 'folder')
+        return;
+    const current = view.name;
+    const next = window.prompt('Rename folder:', current)?.trim();
+    if (!next || next === current)
+        return;
+    folders = renameFolder(folders, current, next);
+    await persistFolders();
+    setView(folders.order.includes(next) ? { kind: 'folder', name: next } : { kind: 'all' });
+}
+async function deleteActiveFolder() {
+    if (view.kind !== 'folder')
+        return;
+    if (!window.confirm('Delete folder “' + view.name + '”? Candidates are not deleted.'))
+        return;
+    folders = deleteFolder(folders, view.name);
+    await persistFolders();
+    setView({ kind: 'all' });
+}
+function setView(next) {
+    view = next;
+    closeFolderMenu();
     render();
 }
 function initHeaderSort() {
@@ -173,16 +283,18 @@ function initHeaderSort() {
         });
     });
 }
-el('tabAll').addEventListener('click', () => setTab('all'));
-el('tabShort').addEventListener('click', () => setTab('shortlist'));
+el('tabAll').addEventListener('click', () => setView({ kind: 'all' }));
+el('tabShort').addEventListener('click', () => setView({ kind: 'shortlist' }));
+renameFolderBtn.addEventListener('click', () => void renameActiveFolder());
+deleteFolderBtn.addEventListener('click', () => void deleteActiveFolder());
 initHeaderSort();
-// The set of candidates the AI-Evaluate button acts on: the shortlist when that
-// tab is active, otherwise every extracted profile.
-function viewUrls() {
-    return tab === 'shortlist' ? profiles.filter((u) => shortlist.has(u)) : profiles.slice();
-}
 function setEvalStatus(text) {
     evalStatusEl.textContent = text;
+}
+// The set of candidates the AI-Evaluate button acts on: whatever the active view
+// shows (all results, the shortlist, or a folder).
+function viewUrls() {
+    return profiles.filter((u) => inView(u));
 }
 // Kick off AI evaluation from the dashboard. Reads the same DeepSeek key/model
 // and job-description form data the popup persists to storage, then hands the
@@ -244,6 +356,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
         changes.profileScores ||
         changes.aiEvals ||
         changes.shortlist ||
+        changes.folders ||
         changes.uiTheme) {
         void load().then(render);
     }
