@@ -3,16 +3,28 @@ import { fetchProfileData } from './profileFetcher.js';
 import { evaluateProfile } from './deepseek.js';
 let running = false;
 /**
+ * Kicks off an AI-evaluation run and returns immediately; the run itself
+ * (runAiEvalLoop) is detached. We must NOT make the caller await the whole loop:
+ * the messaging layer acks 'started' synchronously, and if it awaited instead,
+ * the MV3 service worker could be recycled before the (potentially long, network-
+ * bound) loop finished, so the ack would never arrive — surfacing as
+ * "Failed to start: unknown" in the UI. Progress/results come over their own
+ * messages and storage.
+ */
+export function startAiEval(req) {
+    if (running)
+        return;
+    running = true;
+    void runAiEvalLoop(req);
+}
+/**
  * Evaluates each profile with DeepSeek, sequentially. Profile text comes from
  * fetchProfileData, which serves from the 24h cache when the profile was already
  * scraped for keyword scoring — so a normal "score, then AI-evaluate" flow makes
  * no extra LinkedIn requests. Emits AI_EVAL_PROGRESS after each profile and
  * AI_EVAL_COMPLETE at the end; a per-profile failure is recorded, not fatal.
  */
-export async function startAiEval(req) {
-    if (running)
-        return;
-    running = true;
+async function runAiEvalLoop(req) {
     // Start from any AI evals already saved, so evaluating a subset (e.g. from the
     // dashboard) merges rather than wipes the rest.
     const stored = (await chrome.storage.local.get('aiEvals'));

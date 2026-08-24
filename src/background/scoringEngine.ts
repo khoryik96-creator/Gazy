@@ -128,12 +128,21 @@ async function processBatch(
   return results;
 }
 
-export async function startScoring(data: ScoringRequest): Promise<void> {
+/**
+ * Kicks off a scoring run and returns immediately. The actual loop runs detached
+ * (runScoringLoop) — critically, we do NOT make the caller await the whole run.
+ * The messaging layer acks 'started' synchronously; if it instead awaited the
+ * loop, the MV3 service worker could be recycled before the loop finished and
+ * the ack would never arrive, surfacing as "Failed to start: unknown" in the UI.
+ * Validation (an invalid Boolean rule) throws synchronously so the caller can
+ * still report it as a start error.
+ */
+export function startScoring(data: ScoringRequest): void {
   if (scoringState.isRunning) return;
 
   // Compile the Boolean rule ONCE for the whole run (not per profile). Done before
-  // any state is marked running, so an invalid rule rejects cleanly here and the
-  // popup shows the error — instead of every profile throwing mid-run. (The popup
+  // any state is marked running, so an invalid rule throws cleanly here and the
+  // caller shows the error — instead of every profile throwing mid-run. (The popup
   // also pre-validates; this is the defence-in-depth backstop.)
   const booleanMatches: RuleEvaluator = compileBooleanRule(data.booleanRule);
 
@@ -153,6 +162,10 @@ export async function startScoring(data: ScoringRequest): Promise<void> {
   chrome.runtime
     .sendMessage({ type: MESSAGE.SCORING_STARTED, total: scoringState.profiles.length })
     .catch(() => {});
+  void runScoringLoop(booleanMatches);
+}
+
+async function runScoringLoop(booleanMatches: RuleEvaluator): Promise<void> {
   await checkpoint();
 
   const total = scoringState.profiles.length;
