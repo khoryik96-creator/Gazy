@@ -32,7 +32,7 @@ your status changes.
 > **patch** (x.y.Z) for fixes/tweaks, **minor** (x.Y.0) for a new user-facing
 > feature. `npm version <v> --no-git-tag-version` updates package.json + lock;
 > hand-edit `src/manifest.json` to match, then `npm run build` so `dist/manifest.json`
-> updates too. Current: **1.7.0**.
+> updates too. Current: **1.8.0**.
 
 > 🧱 **Every feature must be modular, efficient, and non-regressing** (owner's
 > standing rule, 2026-08-24). New work goes in its OWN file in the right layer
@@ -377,3 +377,24 @@ it's additive to layout (no structural rewrite).
 - Fonts are system stacks (extension CSP can't reliably load web fonts); theme
   identity is colour + accent + radius. Real Google-font faces could be bundled
   later if wanted. v1.7.0.
+
+### 2026-08-24 — popup visual overhaul (branch `claude/multi-account-project-rcmfpz`)
+
+The v1.7 theme pass only swapped colours on the old cramped layout, so it looked
+barely different. This is the real structural redesign (approved from a preview),
+Beacon set as the default theme.
+
+- **Restructured `popup.html`**: brand header (mark + subtitle) with icon buttons,
+  uppercase micro-labels, a two-up Boolean/Location row, an action bar, pill
+  action buttons (Score/AI/CSV/Copy), filter chips (`:has(input:checked)`), and a
+  status footer. **All element IDs preserved** so the JS wiring is unchanged.
+- **`render.ts` rows are now candidate cards**: avatar (initials), a prettified
+  name (slug → "Sarah Chen", id-ish tokens dropped) + meta line (location/handle),
+  keyword % + ✦AI as chips, a shortlist star, and mini row-actions. Selectors in
+  `wireResultRowActions` renamed to match (`.starbtn`, `.iconmini.*`).
+- **`popup.css` rewritten** as component styles over the token system; card/pill/
+  chip look. Beacon token values refined (weak tints for chips, 16px radius).
+- `shared/themes.ts`: `DEFAULT_UI_THEME = 'beacon'`.
+- Shortened Score/AI button labels to fit pills (scoringUI/aiEvalUI).
+- Still system fonts (extension CSP). Dashboard unchanged this PR — could get the
+  same card polish next. v1.8.0.

@@ -11,6 +11,26 @@ export function escapeHtml(str: string): string {
   return div.innerHTML;
 }
 
+/** The `/in/<slug>` handle from a profile URL. */
+function handleOf(url: string): string {
+  return url.split('/in/')[1]?.split('/')[0] || '';
+}
+
+/** Turn a URL slug into a readable name: "sarah-chen" → "Sarah Chen".
+ *  Drops trailing id-ish tokens (those containing digits). */
+function prettyName(slug: string): string {
+  const words = slug
+    .split('-')
+    .filter((w) => w.length > 0 && !/\d/.test(w))
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1));
+  return words.join(' ') || slug;
+}
+
+function initials(name: string): string {
+  const parts = name.split(/\s+/).filter(Boolean);
+  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || '?';
+}
+
 export function renderProfiles(): void {
   const hideZero = dom.hideZeroCheck.checked;
   const shortlistOnly = dom.shortlistOnlyCheck.checked;
@@ -21,117 +41,114 @@ export function renderProfiles(): void {
   state.extractedProfiles.forEach((url, i) => {
     const entry = scoreEntry(scores, url);
     const score = entry?.score;
-    // Only hide genuine zero matches, never failed scrapes — a failed fetch
-    // isn't evidence the candidate is a poor match.
     if (hideZero && score === 0 && entry?.success !== false) return;
     if (shortlistOnly && !isShortlisted(url)) return;
     visibleCount++;
 
+    const handle = handleOf(url) || 'profile-' + (i + 1);
+    const name = prettyName(handle);
     const starred = isShortlisted(url);
-    const starBtn =
-      '<button class="btn-icon star' +
-      (starred ? ' on' : '') +
-      '" data-url="' +
-      escapeHtml(url) +
-      '" title="' +
-      (starred ? 'Remove from shortlist' : 'Add to shortlist') +
-      '">' +
-      (starred ? '⭐' : '☆') +
-      '</button>';
 
-    const rawName = url.split('/in/')[1]?.split('/')[0] || 'Profile ' + (i + 1);
-    const safeName = escapeHtml(rawName);
-    const debugText = entry?.debug;
-    let scoreDisplay = '—';
+    // Keyword score chip (omitted before a profile is scored).
+    let kwChip = '';
     if (entry) {
-      if (entry.success === false) {
-        // Scrape failed (login wall / timeout / error) — distinct from a real 0
-        // so the recruiter doesn't discard a candidate we simply couldn't read.
-        scoreDisplay = '<span class="score-fail">⚠️ failed</span>';
-      } else if (score === 0) {
-        scoreDisplay = '<span class="score-zero">0% ❌</span>';
-      } else {
-        scoreDisplay = '<span class="score-good">' + score + '%</span>';
-      }
+      if (entry.success === false) kwChip = '<span class="kw fail">failed</span>';
+      else if (score === 0) kwChip = '<span class="kw zero">0%</span>';
+      else kwChip = '<span class="kw">' + score + '%</span>';
     }
-    const debugBtn = debugText
-      ? '<button class="btn-icon debug-btn" data-debug="' +
-        encodeURIComponent(debugText) +
-        '" style="cursor:pointer;font-size:12px;">🔍</button>'
-      : '';
 
-    // Optional DeepSeek evaluation: a purple AI score + a 💡 "why" button.
+    // Optional DeepSeek evaluation chip + a 💡 "why" button.
     const ai = state.aiEvals[url];
-    let aiDisplay = '';
+    let aiChip = '';
     let whyBtn = '';
     if (ai) {
       if (ai.error) {
-        aiDisplay = '<span class="profile-ai err" title="' + escapeHtml(ai.error) + '">✨⚠️</span>';
+        aiChip = '<span class="ai none" title="' + escapeHtml(ai.error) + '">✦⚠</span>';
       } else {
-        aiDisplay = '<span class="profile-ai">✨' + ai.score + '%</span>';
+        aiChip = '<span class="ai">✦' + ai.score + '</span>';
         const why =
           ai.reason +
           (ai.matched.length ? '\n\n✅ Matched: ' + ai.matched.join(', ') : '') +
           (ai.missing.length ? '\n\n❌ Missing: ' + ai.missing.join(', ') : '');
         whyBtn =
-          '<button class="btn-icon ai-why" data-why="' +
+          '<button class="iconmini why" data-why="' +
           encodeURIComponent(why) +
-          '" style="cursor:pointer;font-size:12px;">💡</button>';
+          '" title="Why this score">💡</button>';
       }
     }
 
+    const debugText = entry?.debug;
+    const debugBtn = debugText
+      ? '<button class="iconmini debug" data-debug="' +
+        encodeURIComponent(debugText) +
+        '" title="First 200 chars scraped">🔍</button>'
+      : '';
+
+    const meta = entry?.location || '@' + handle;
+
     html +=
-      '<div class="profile-item" data-index="' +
-      i +
-      '">' +
-      '<a href="' +
-      escapeHtml(url) +
-      '" target="_blank" class="profile-url" title="' +
-      escapeHtml(url) +
-      '">👤 ' +
-      safeName +
-      '</a>' +
-      '<span class="profile-score">' +
-      scoreDisplay +
+      '<div class="cardrow">' +
+      '<span class="av">' +
+      escapeHtml(initials(name)) +
       '</span>' +
-      aiDisplay +
-      '<div class="profile-actions">' +
-      starBtn +
+      '<a class="who" href="' +
+      escapeHtml(url) +
+      '" target="_blank" rel="noopener" title="' +
+      escapeHtml(url) +
+      '"><span class="nm">' +
+      escapeHtml(name) +
+      '</span><span class="meta">' +
+      escapeHtml(meta) +
+      '</span></a>' +
+      '<div class="scorewrap">' +
+      kwChip +
+      aiChip +
+      '</div>' +
+      '<div class="rowacts">' +
+      '<button class="starbtn' +
+      (starred ? '' : ' off') +
+      '" data-url="' +
+      escapeHtml(url) +
+      '" title="' +
+      (starred ? 'Remove from shortlist' : 'Add to shortlist') +
+      '">' +
+      (starred ? '★' : '☆') +
+      '</button>' +
       whyBtn +
       debugBtn +
-      '<button class="btn-icon copy" data-url="' +
+      '<button class="iconmini copy" data-url="' +
       escapeHtml(url) +
-      '">📋</button>' +
-      '<button class="btn-icon remove" data-index="' +
+      '" title="Copy URL">📋</button>' +
+      '<button class="iconmini remove" data-index="' +
       i +
-      '">✕</button>' +
-      '</div></div>';
+      '" title="Remove">✕</button>' +
+      '</div>' +
+      '</div>';
   });
 
   dom.resultsContainer.innerHTML =
-    html || '<div class="empty-state"><p>No profiles match the current filter.</p></div>';
-  dom.profileCount.textContent =
-    visibleCount + ' profiles shown (of ' + state.extractedProfiles.length + ')';
+    html || '<div class="empty-state"><p>No candidates match the current filter.</p></div>';
+  dom.profileCount.textContent = visibleCount + ' candidates';
 
   wireResultRowActions();
 }
 
 function wireResultRowActions(): void {
-  dom.resultsContainer.querySelectorAll<HTMLButtonElement>('.debug-btn').forEach((btn) => {
+  dom.resultsContainer.querySelectorAll<HTMLButtonElement>('.iconmini.debug').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       const target = e.currentTarget as HTMLButtonElement;
       alert(decodeURIComponent(target.dataset.debug || ''));
     });
   });
 
-  dom.resultsContainer.querySelectorAll<HTMLButtonElement>('.ai-why').forEach((btn) => {
+  dom.resultsContainer.querySelectorAll<HTMLButtonElement>('.iconmini.why').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       const target = e.currentTarget as HTMLButtonElement;
       alert(decodeURIComponent(target.dataset.why || ''));
     });
   });
 
-  dom.resultsContainer.querySelectorAll<HTMLButtonElement>('.btn-icon.star').forEach((btn) => {
+  dom.resultsContainer.querySelectorAll<HTMLButtonElement>('.starbtn').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       const target = e.currentTarget as HTMLButtonElement;
       toggleShortlist(target.dataset.url || '');
@@ -139,7 +156,7 @@ function wireResultRowActions(): void {
     });
   });
 
-  dom.resultsContainer.querySelectorAll<HTMLButtonElement>('.btn-icon.copy').forEach((btn) => {
+  dom.resultsContainer.querySelectorAll<HTMLButtonElement>('.iconmini.copy').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       const target = e.currentTarget as HTMLButtonElement;
       void navigator.clipboard.writeText(target.dataset.url || '').then(() => {
@@ -149,7 +166,7 @@ function wireResultRowActions(): void {
     });
   });
 
-  dom.resultsContainer.querySelectorAll<HTMLButtonElement>('.btn-icon.remove').forEach((btn) => {
+  dom.resultsContainer.querySelectorAll<HTMLButtonElement>('.iconmini.remove').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       const target = e.currentTarget as HTMLButtonElement;
       const idx = parseInt(target.dataset.index || '', 10);

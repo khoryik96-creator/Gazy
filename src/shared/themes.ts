@@ -2,7 +2,7 @@
 export const UI_THEMES = ['ledger', 'beacon', 'nocturne'] as const;
 export type UiTheme = (typeof UI_THEMES)[number];
 
-export const DEFAULT_UI_THEME: UiTheme = 'ledger';
+export const DEFAULT_UI_THEME: UiTheme = 'beacon';
 
 /** Human labels for the theme picker. */
 export const UI_THEME_LABELS: Record<UiTheme, string> = {
