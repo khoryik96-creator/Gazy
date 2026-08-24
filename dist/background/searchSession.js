@@ -2,21 +2,36 @@ import { MESSAGE, PAGE_NAV_DELAY_MIN_MS, PAGE_NAV_DELAY_MAX_MS } from '../shared
 import { buildSearchUrl, mergeProfiles, shouldContinuePaging, clampScanPages, } from '../shared/pagination.js';
 import { randomDelayMs, sleep } from '../shared/timing.js';
 let session = null;
-/** Begins a search: records the session and navigates the active tab to page 1. */
+/**
+ * Begins a search: records the session and loads page 1. From the popup we
+ * navigate the active tab; from the dashboard (newTab) we open a dedicated tab
+ * so the dashboard itself isn't navigated away.
+ */
 export async function startSearch(req) {
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    const tab = tabs[0];
-    if (!tab?.id)
-        throw new Error('No active tab found.');
+    const url = buildSearchUrl(req.query, 1);
+    let tabId;
+    if (req.newTab) {
+        const tab = await chrome.tabs.create({ url, active: true });
+        if (!tab.id)
+            throw new Error('Could not open a search tab.');
+        tabId = tab.id;
+    }
+    else {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        const tab = tabs[0];
+        if (!tab?.id)
+            throw new Error('No active tab found.');
+        tabId = tab.id;
+        await chrome.tabs.update(tabId, { url });
+    }
     session = {
-        tabId: tab.id,
+        tabId,
         query: req.query,
         maxPages: clampScanPages(req.maxPages),
         page: 1,
         collected: [],
         done: false,
     };
-    await chrome.tabs.update(tab.id, { url: buildSearchUrl(req.query, 1) });
 }
 /**
  * Handles one page's extracted URLs. With no active session for the reporting

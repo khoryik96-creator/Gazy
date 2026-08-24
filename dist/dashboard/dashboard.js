@@ -3,6 +3,7 @@ import { normalizeUiTheme } from '../shared/themes.js';
 import { MESSAGE } from '../shared/constants.js';
 import { emptyFolderStore, normalizeFolderStore, normalizeFolderName, createFolder, renameFolder, deleteFolder, toggleMembership, addMembership, foldersForUrl, folderCount, } from '../shared/folders.js';
 import { openFolderMenu, openFolderPickMenu, closeFolderMenu } from './folderMenu.js';
+import { initSidebar } from './sidebar.js';
 import { getScoringKeywords } from '../shared/keywordExtraction.js';
 import { compileBooleanRule } from '../shared/booleanExpression.js';
 import { largeRunWarning } from '../shared/runGuard.js';
@@ -443,13 +444,13 @@ async function startEval() {
     const cfg = (await chrome.storage.local.get(['aiKey', 'aiModel', 'formData']));
     const apiKey = (cfg.aiKey || '').trim();
     if (!apiKey) {
-        setEvalStatus('Add your DeepSeek API key in the extension popup ⚙️ settings first.');
+        setEvalStatus('Add your DeepSeek API key in Settings (left rail) first.');
         return;
     }
     const fd = cfg.formData || {};
     const jd = (fd.jd || fd.keywords || fd.booleanRule || '').trim();
     if (!jd) {
-        setEvalStatus('Add a job description or keywords in the extension popup first.');
+        setEvalStatus('Add a job description or keywords in the left rail first.');
         return;
     }
     const model = cfg.aiModel === 'deepseek-reasoner' ? 'deepseek-reasoner' : 'deepseek-chat';
@@ -489,7 +490,7 @@ async function startScoring() {
         jd: fd.jd,
     });
     if (keywords.length === 0) {
-        setEvalStatus('Add a job description, Boolean rule, or keywords in the extension popup first.');
+        setEvalStatus('Add a job description, Boolean rule, or keywords in the left rail first.');
         return;
     }
     const booleanRule = fd.booleanRule || '';
@@ -553,4 +554,5 @@ chrome.storage.onChanged.addListener((changes, area) => {
         void load().then(render);
     }
 });
+initSidebar();
 void load().then(render);
