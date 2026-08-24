@@ -14,6 +14,7 @@ import {
 import { openFolderMenu, closeFolderMenu } from './folderMenu.js';
 import { getScoringKeywords } from '../shared/keywordExtraction.js';
 import { compileBooleanRule } from '../shared/booleanExpression.js';
+import { largeRunWarning } from '../shared/runGuard.js';
 import type { FolderStore } from '../shared/folders.js';
 import type { ScoresMap, AiEvalMap, AiModel } from '../shared/types.js';
 
@@ -393,7 +394,8 @@ async function startEval(): Promise<void> {
 
   if (
     !confirm(
-      'Send ' +
+      largeRunWarning(urls.length, 'ai') +
+        'Send ' +
         urls.length +
         ' profile(s) to DeepSeek (' +
         model +
@@ -456,7 +458,8 @@ async function startScoring(): Promise<void> {
 
   if (
     !confirm(
-      'Score ' +
+      largeRunWarning(urls.length, 'score') +
+        'Score ' +
         urls.length +
         ' candidate(s)? This visits each LinkedIn profile in the background to scrape and score it.',
     )
