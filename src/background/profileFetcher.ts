@@ -8,12 +8,19 @@ import {
   RETRY_DELAY_MAX_MS,
 } from '../shared/constants.js';
 import { randomDelayMs } from '../shared/timing.js';
+import { shouldRetry, backoffDelayMs } from '../shared/retry.js';
+import type { ScrapeFailure } from '../shared/retry.js';
 import { profileCache } from './cache.js';
 import { extractProfilePageData } from './pageExtractor.js';
 import type { ProfilePageData } from '../shared/types.js';
 
 /**
- * Opens `url` in a background tab, scrapes it, retries on thin content, and caches the result.
+ * Opens `url` in a background tab, scrapes it, and caches the result.
+ *
+ * Retries with exponential backoff on recoverable failures — thin/slow-rendered
+ * content, plus transient errors (executeScript races, empty results, load
+ * timeouts) — up to RETRY_COUNT attempts. A login wall is fatal: it rejects
+ * immediately, since another attempt can't fix it.
  *
  * The tab is only closed once scraping has actually finished (success, error, or timeout) —
  * closing it earlier means chrome.scripting.executeScript runs against a tab that no longer
@@ -61,6 +68,25 @@ export function fetchProfileData(url: string, retryCount = 0): Promise<ProfilePa
         action();
       };
 
+      // Close the tab, then either schedule a backed-off retry (recoverable
+      // failures under the attempt cap) or reject with the given error.
+      const fail = (failure: ScrapeFailure, err: Error) => {
+        finish(() => {
+          if (shouldRetry(failure, retryCount, RETRY_COUNT)) {
+            setTimeout(
+              () => {
+                fetchProfileData(url, retryCount + 1)
+                  .then(resolve)
+                  .catch(reject);
+              },
+              backoffDelayMs(retryCount, RETRY_DELAY_MIN_MS, RETRY_DELAY_MAX_MS),
+            );
+          } else {
+            reject(err);
+          }
+        });
+      };
+
       const scrapeTab = () => {
         if (scraping || settled) return;
         scraping = true;
@@ -73,35 +99,28 @@ export function fetchProfileData(url: string, retryCount = 0): Promise<ProfilePa
             chrome.scripting.executeScript(
               { target: { tabId }, func: extractProfilePageData },
               (results) => {
+                // Transient: the injected script raced the tab or returned nothing.
                 if (chrome.runtime.lastError) {
-                  finish(() => reject(new Error(chrome.runtime.lastError!.message)));
+                  fail('transient', new Error(chrome.runtime.lastError.message));
                   return;
                 }
                 if (!results || !results[0] || !results[0].result) {
-                  finish(() => reject(new Error('No data extracted')));
+                  fail('transient', new Error('No data extracted'));
                   return;
                 }
 
                 const data = results[0].result;
+                // Fatal: a login wall won't clear on a retry — surface it now.
                 if (data.error === 'login') {
-                  finish(() =>
-                    reject(
-                      new Error('LinkedIn login page detected. Please ensure you are logged in.'),
-                    ),
+                  fail(
+                    'fatal',
+                    new Error('LinkedIn login page detected. Please ensure you are logged in.'),
                   );
                   return;
                 }
+                // Thin content: retry while under the cap, else accept what we got.
                 if (data.fullText.length < MIN_TEXT_LENGTH && retryCount < RETRY_COUNT) {
-                  finish(() => {
-                    setTimeout(
-                      () => {
-                        fetchProfileData(url, retryCount + 1)
-                          .then(resolve)
-                          .catch(reject);
-                      },
-                      randomDelayMs(RETRY_DELAY_MIN_MS, RETRY_DELAY_MAX_MS),
-                    );
-                  });
+                  fail('thin-content', new Error('Thin profile content'));
                   return;
                 }
 
@@ -124,7 +143,8 @@ export function fetchProfileData(url: string, retryCount = 0): Promise<ProfilePa
       }
 
       timeoutId = setTimeout(() => {
-        finish(() => reject(new Error('Profile load timed out after 60 seconds.')));
+        // A hung/slow load is transient — retry it rather than failing outright.
+        fail('transient', new Error('Profile load timed out after 60 seconds.'));
       }, PROFILE_TIMEOUT_MS);
     });
   });
