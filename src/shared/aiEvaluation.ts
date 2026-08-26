@@ -14,8 +14,13 @@ export function buildEvaluationMessages(
 ): { system: string; user: string } {
   const system =
     'You are a technical recruiter screening LinkedIn profiles against a role. ' +
-    'Judge how well the candidate fits the requirements. Reward relevant and transferable ' +
-    'skills and seniority; do not reward keyword stuffing. ' +
+    'Judge how well the candidate fits the requirements, weighting the actual ROLE and ' +
+    'core responsibilities/skills most heavily. Reward relevant and transferable skills and ' +
+    'seniority; do not reward keyword stuffing. ' +
+    'IGNORE education, degrees, and language-proficiency requirements entirely — do not let ' +
+    'them raise or lower the score, and do not list them in matched/missing. ' +
+    'If the candidate is in a clearly different function from the role (e.g. a data scientist ' +
+    'for a product owner role), score low even when generic keywords overlap. ' +
     'Respond with ONLY a JSON object of this exact shape, no prose, no markdown: ' +
     '{"score": <integer 0-100>, "reason": "<one sentence>", ' +
     '"matched": ["<requirement>", ...], "missing": ["<requirement>", ...]}. ' +
