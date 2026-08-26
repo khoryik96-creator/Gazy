@@ -101,6 +101,14 @@ export function removeUrlsFromFolders(store, urls) {
         next.members[name] = next.members[name].filter((u) => !urls.has(u));
     return next;
 }
+/** Removes the given URLs from ONE folder only (unfile). No-op for unknown folders. */
+export function removeUrlsFromFolder(store, name, urls) {
+    if (!store.order.includes(name))
+        return store;
+    const next = clone(store);
+    next.members[name] = next.members[name].filter((u) => !urls.has(u));
+    return next;
+}
 /** The folders a given candidate belongs to, in display order. */
 export function foldersForUrl(store, url) {
     return store.order.filter((name) => store.members[name]?.includes(url));

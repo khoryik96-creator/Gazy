@@ -10,6 +10,7 @@ import {
   toggleMembership,
   addMembership,
   removeUrlsFromFolders,
+  removeUrlsFromFolder,
   foldersForUrl,
   folderCount,
 } from '../dist/shared/folders.js';
@@ -94,6 +95,17 @@ test('removeUrlsFromFolders strips urls from every folder, keeps folders', () =>
   assert.deepEqual(s.order, ['One', 'Two']);
   assert.deepEqual(s.members.One, [B]);
   assert.deepEqual(s.members.Two, []);
+});
+
+test('removeUrlsFromFolder unfiles from ONE folder only', () => {
+  let s = createFolder(createFolder(emptyFolderStore(), 'One'), 'Two');
+  s = toggleMembership(s, 'One', A);
+  s = toggleMembership(s, 'Two', A);
+  s = removeUrlsFromFolder(s, 'One', new Set([A]));
+  assert.deepEqual(s.members.One, []); // removed here
+  assert.deepEqual(s.members.Two, [A]); // still filed in the other folder
+  // Unknown folder is a no-op.
+  assert.equal(removeUrlsFromFolder(s, 'Nope', new Set([A])), s);
 });
 
 test('deleteFolder drops the folder only', () => {
