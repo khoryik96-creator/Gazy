@@ -24,7 +24,7 @@ export function renderCostPanel(container: HTMLElement, o: CostPanelOpts): void 
   const usd = totalCostUsd(o.usage, o.prices);
   const myr = usd * o.usdToMyr;
 
-  const row = (label: string, m: ModelUsage, inP: number, outP: number): string =>
+  const row = (label: string, m: ModelUsage, inP: number, cachedP: number, outP: number): string =>
     '<tr><td>' +
     label +
     '</td><td class="num">' +
@@ -32,9 +32,11 @@ export function renderCostPanel(container: HTMLElement, o: CostPanelOpts): void 
     '</td><td class="num">' +
     tokens(m.inputTokens) +
     '</td><td class="num">' +
+    tokens(m.cachedInputTokens) +
+    '</td><td class="num">' +
     tokens(m.outputTokens) +
     '</td><td class="num">' +
-    money(modelCostUsd(m, inP, outP), '$') +
+    money(modelCostUsd(m, inP, cachedP, outP), '$') +
     '</td></tr>';
 
   container.innerHTML = `
@@ -59,11 +61,11 @@ export function renderCostPanel(container: HTMLElement, o: CostPanelOpts): void 
       <table class="cand cost-table">
         <thead><tr>
           <th>Model</th><th class="num">Calls</th><th class="num">Input tokens</th>
-          <th class="num">Output tokens</th><th class="num">Est. USD</th>
+          <th class="num">of which cached</th><th class="num">Output tokens</th><th class="num">Est. USD</th>
         </tr></thead>
         <tbody>
-          ${row('⚡ deepseek-chat', o.usage.chat, o.prices.chatIn, o.prices.chatOut)}
-          ${row('🧠 deepseek-reasoner', o.usage.reasoner, o.prices.reasonerIn, o.prices.reasonerOut)}
+          ${row('⚡ deepseek-chat', o.usage.chat, o.prices.chatIn, o.prices.chatCached, o.prices.chatOut)}
+          ${row('🧠 deepseek-reasoner', o.usage.reasoner, o.prices.reasonerIn, o.prices.reasonerCached, o.prices.reasonerOut)}
         </tbody>
       </table>
     </div>
@@ -71,9 +73,11 @@ export function renderCostPanel(container: HTMLElement, o: CostPanelOpts): void 
     <details class="cost-prices">
       <summary>Pricing (USD per 1M tokens)</summary>
       <div class="cost-price-grid">
-        <label>chat · input<input type="number" id="pChatIn" class="side-inp" min="0" step="0.01" value="${o.prices.chatIn}" /></label>
+        <label>chat · input (miss)<input type="number" id="pChatIn" class="side-inp" min="0" step="0.01" value="${o.prices.chatIn}" /></label>
+        <label>chat · input (cache hit)<input type="number" id="pChatCached" class="side-inp" min="0" step="0.01" value="${o.prices.chatCached}" /></label>
         <label>chat · output<input type="number" id="pChatOut" class="side-inp" min="0" step="0.01" value="${o.prices.chatOut}" /></label>
-        <label>reasoner · input<input type="number" id="pReasonerIn" class="side-inp" min="0" step="0.01" value="${o.prices.reasonerIn}" /></label>
+        <label>reasoner · input (miss)<input type="number" id="pReasonerIn" class="side-inp" min="0" step="0.01" value="${o.prices.reasonerIn}" /></label>
+        <label>reasoner · input (cache hit)<input type="number" id="pReasonerCached" class="side-inp" min="0" step="0.01" value="${o.prices.reasonerCached}" /></label>
         <label>reasoner · output<input type="number" id="pReasonerOut" class="side-inp" min="0" step="0.01" value="${o.prices.reasonerOut}" /></label>
       </div>
     </details>
@@ -98,8 +102,10 @@ export function renderCostPanel(container: HTMLElement, o: CostPanelOpts): void 
     });
   };
   priceInput('pChatIn', 'chatIn');
+  priceInput('pChatCached', 'chatCached');
   priceInput('pChatOut', 'chatOut');
   priceInput('pReasonerIn', 'reasonerIn');
+  priceInput('pReasonerCached', 'reasonerCached');
   priceInput('pReasonerOut', 'reasonerOut');
 
   el<HTMLButtonElement>('costReset').addEventListener('click', o.onReset);
