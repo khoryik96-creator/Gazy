@@ -51,22 +51,54 @@ function cellXml(ref, value) {
         return `<c r="${ref}"><v>${value}</v></c>`;
     return `<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${xmlEscape(String(value))}</t></is></c>`;
 }
-function sheetXml(rows) {
+const URL_RE = /^https?:\/\//i;
+// Builds the worksheet XML and collects any cell whose value is a URL as a
+// clickable hyperlink (the cell still shows the URL text; a worksheet
+// relationship makes it open in a browser when clicked).
+function buildSheet(rows) {
     const rowCount = Math.max(rows.length, 1);
     const colCount = Math.max(1, ...rows.map((r) => r.length));
     const lastRef = columnName(colCount - 1) + rowCount;
+    const hyperlinks = [];
     let body = '';
     rows.forEach((row, r) => {
-        const cells = row.map((v, c) => cellXml(columnName(c) + (r + 1), v)).join('');
+        let cells = '';
+        row.forEach((v, c) => {
+            const ref = columnName(c) + (r + 1);
+            if (typeof v === 'string' && URL_RE.test(v))
+                hyperlinks.push({ ref, target: v });
+            cells += cellXml(ref, v);
+        });
         body += `<row r="${r + 1}">${cells}</row>`;
     });
-    return ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    // Hyperlinks come after autoFilter in the worksheet schema order.
+    const linksXml = hyperlinks.length
+        ? '<hyperlinks>' +
+            hyperlinks.map((h, i) => `<hyperlink ref="${h.ref}" r:id="rId${i + 1}"/>`).join('') +
+            '</hyperlinks>'
+        : '';
+    const xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ' +
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
         `<dimension ref="A1:${lastRef}"/>` +
         `<sheetData>${body}</sheetData>` +
         // AutoFilter over the whole table (incl. header) = the filter/sort dropdowns.
         `<autoFilter ref="A1:${lastRef}"/>` +
-        '</worksheet>');
+        linksXml +
+        '</worksheet>';
+    return { xml, hyperlinks };
+}
+// Per-sheet relationships mapping each hyperlink's rId to its external URL.
+function sheetRelsXml(hyperlinks) {
+    const rels = hyperlinks
+        .map((h, i) => `<Relationship Id="rId${i + 1}" ` +
+        'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" ' +
+        `Target="${xmlEscape(h.target)}" TargetMode="External"/>`)
+        .join('');
+    return ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        rels +
+        '</Relationships>');
 }
 function sanitizeSheetName(name) {
     // Excel forbids : \ / ? * [ ] in sheet names and caps them at 31 chars.
@@ -176,11 +208,20 @@ function workbookXml(sheetName) {
  */
 export function buildXlsx(rows, sheetName = 'Candidates') {
     const name = sanitizeSheetName(sheetName);
-    return zipStore([
+    const sheet = buildSheet(rows);
+    const files = [
         { name: '[Content_Types].xml', data: encoder.encode(CONTENT_TYPES) },
         { name: '_rels/.rels', data: encoder.encode(ROOT_RELS) },
         { name: 'xl/workbook.xml', data: encoder.encode(workbookXml(name)) },
         { name: 'xl/_rels/workbook.xml.rels', data: encoder.encode(WORKBOOK_RELS) },
-        { name: 'xl/worksheets/sheet1.xml', data: encoder.encode(sheetXml(rows)) },
-    ]);
+        { name: 'xl/worksheets/sheet1.xml', data: encoder.encode(sheet.xml) },
+    ];
+    // Only add the worksheet rels part when there are actual hyperlinks to map.
+    if (sheet.hyperlinks.length) {
+        files.push({
+            name: 'xl/worksheets/_rels/sheet1.xml.rels',
+            data: encoder.encode(sheetRelsXml(sheet.hyperlinks)),
+        });
+    }
+    return zipStore(files);
 }

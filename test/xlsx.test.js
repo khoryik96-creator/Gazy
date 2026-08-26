@@ -56,3 +56,30 @@ test('XML-special characters in strings are escaped', () => {
   const text = asText(buildXlsx([['Name'], ['A & <b> "c"']]));
   assert.ok(text.includes('A &amp; &lt;b&gt; &quot;c&quot;'));
 });
+
+test('URL cells become clickable hyperlinks', () => {
+  const bytes = buildXlsx([
+    ['Name', 'URL'],
+    ['Jane', 'https://www.linkedin.com/in/jane'],
+  ]);
+  const text = asText(bytes);
+  // Worksheet declares a hyperlink on the URL cell (B2) via a relationship.
+  assert.ok(text.includes('<hyperlinks>'));
+  assert.ok(text.includes('<hyperlink ref="B2" r:id="rId1"/>'));
+  // A per-sheet rels part maps rId1 to the external URL.
+  assert.ok(text.includes('xl/worksheets/_rels/sheet1.xml.rels'));
+  assert.ok(text.includes('Target="https://www.linkedin.com/in/jane" TargetMode="External"'));
+  // The cell still shows the URL text.
+  assert.ok(text.includes('https://www.linkedin.com/in/jane</t>'));
+});
+
+test('no hyperlinks part when there are no URL cells', () => {
+  const text = asText(
+    buildXlsx([
+      ['Name', 'Score'],
+      ['Jane', 80],
+    ]),
+  );
+  assert.ok(!text.includes('<hyperlinks>'));
+  assert.ok(!text.includes('sheet1.xml.rels'));
+});
