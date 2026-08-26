@@ -1,0 +1,67 @@
+name: Release
+
+# Package the built extension for distribution.
+#  • Push a tag like v1.27.0  → builds, zips, and publishes a GitHub Release
+#    with the zip attached.
+#  • Run manually (Actions → Release → Run workflow) → builds and zips, and
+#    uploads the zip as a downloadable workflow artifact (no Release created).
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write # needed to create the Release and upload its asset
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      # TS 7 (native) isn't yet supported by typescript-eslint, so the project
+      # pins TS 6.0.x; that peer mismatch needs legacy-peer-deps.
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      # Gate the release on the full check (format, typecheck, lint, build, unit
+      # tests) so a broken build never ships.
+      - name: Verify
+        run: npm run check
+
+      # dist/ is produced by `npm run check` (its build step). Package the
+      # CONTENTS of dist/ so the manifest sits at the zip root — that's what
+      # Chrome's "Load unpacked" and the Web Store both expect.
+      - name: Package extension
+        id: pkg
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          ZIP="gazy-${VERSION}.zip"
+          (cd dist && zip -r "../${ZIP}" .)
+          echo "zip=${ZIP}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      # Always available: the built zip as a workflow artifact (handy for manual
+      # runs, and a backup for tag runs).
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.pkg.outputs.zip }}
+          path: ${{ steps.pkg.outputs.zip }}
+          if-no-files-found: error
+
+      # Only on a version tag: publish a Release and attach the zip. Uses the
+      # built-in gh CLI (no third-party action) with the workflow's GITHUB_TOKEN.
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" "${{ steps.pkg.outputs.zip }}" \
+            --title "Gazy ${{ steps.pkg.outputs.version }}" \
+            --generate-notes

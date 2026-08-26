@@ -32,7 +32,7 @@ your status changes.
 > **patch** (x.y.Z) for fixes/tweaks, **minor** (x.Y.0) for a new user-facing
 > feature. `npm version <v> --no-git-tag-version` updates package.json + lock;
 > hand-edit `src/manifest.json` to match, then `npm run build` so `dist/manifest.json`
-> updates too. Current: **1.26.1**.
+> updates too. Current: **1.27.0**.
 
 > 🧱 **Every feature must be modular, efficient, and non-regressing** (owner's
 > standing rule, 2026-08-24). New work goes in its OWN file in the right layer
@@ -45,6 +45,7 @@ your status changes.
 
 ## Status log
 
+| 2026-08-26 | claude/chrome-extension-architecture-cj7pul | TOOLING/RELIABILITY BATCH (v1.27.0): (1) Dashboard refactor — extracted the god-file's delicate logic into two pure, unit-tested modules: `dashboard/rows.ts` (universeUrls/buildRows/sortRows/inView/viewScopeName) + `dashboard/removal.ts` (computeRemoveFromResults/Folder/Shortlist + computeUndo returning next-storage payloads). dashboard.ts binds via thin wrappers; call sites unchanged. +12 unit tests + a Playwright dashboard e2e (seeds storage, asserts render/sort/views/folders/bulk). (2) Scraper retry — `shared/retry.ts` (isRetryable/shouldRetry/backoffDelayMs); profileFetcher now retries transient failures (executeScript race, empty result, timeout) with exponential jittered backoff, login-wall stays fatal. +6 tests. (3) `.github/workflows/release.yml` — tag `v*` builds+zips (manifest at zip root)+publishes a Release via gh CLI; manual dispatch uploads the zip artifact. | done (unmerged) |
 | 2026-08-26 | claude/chrome-extension-architecture-cj7pul | XLSX HYPERLINKS (v1.26.1): shared/xlsx now turns any URL cell into a clickable worksheet hyperlink (OOXML relationship, TargetMode=External) — the URL column in the Excel export opens the profile in a browser. Auto-detected (^https?://), so dashboard + popup exports both get it; no caller change. +2 tests. | done (unmerged) |
 | 2026-08-26 | claude/chrome-extension-architecture-cj7pul | EVALUATE/SCORE SELECTED (v1.26.0): dashboard bulk bar gains "⭐ Score selected" + "✦ AI Evaluate selected" — run on just the checked rows so an interrupted AI scan can resume on a subset instead of re-running all. startEval/startScoring take an optional target url[] (default viewUrls()); setRunning disables the bulk run buttons too. | merged (PR #47) |
 | 2026-08-24 | claude/multi-account-project-rcmfpz | UNDO REMOVE (v1.23.0): removeCandidates now stashes a RemovedSnapshot (urls+scores+aiEvals+shortlisted+folder memberships) to storage `lastRemoved`; ↩ Undo remove button (toolbar, shown when a snapshot exists) restores everything incl. folder membership (skips since-deleted folders). One-level undo, persisted across reloads. Covers both Clear results and Remove selected. | done |
