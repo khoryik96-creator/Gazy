@@ -1,7 +1,8 @@
-import { scoreEntry } from '../shared/scoreView.js';
 import { normalizeUiTheme } from '../shared/themes.js';
 import { MESSAGE } from '../shared/constants.js';
-import { emptyFolderStore, normalizeFolderStore, normalizeFolderName, createFolder, renameFolder, deleteFolder, toggleMembership, addMembership, removeUrlsFromFolder, foldersForUrl, folderCount, } from '../shared/folders.js';
+import { emptyFolderStore, normalizeFolderStore, normalizeFolderName, createFolder, renameFolder, deleteFolder, toggleMembership, addMembership, folderCount, } from '../shared/folders.js';
+import { universeUrls as universeUrlsPure, buildRows as buildRowsPure, sortRows as sortRowsPure, inView as inViewPure, viewScopeName as viewScopeNamePure, } from './rows.js';
+import { computeRemoveFromResults, computeRemoveFromFolder, computeRemoveFromShortlist, computeUndo, } from './removal.js';
 import { openFolderMenu, openFolderPickMenu, closeFolderMenu } from './folderMenu.js';
 import { initSidebar } from './sidebar.js';
 import { renderCostPanel } from './costPanel.js';
@@ -11,6 +12,11 @@ import { compileBooleanRule } from '../shared/booleanExpression.js';
 import { largeRunWarning } from '../shared/runGuard.js';
 import { buildCandidateCsv, buildCandidateSheet, exportFilename, } from '../shared/candidateExport.js';
 import { buildXlsx } from '../shared/xlsx.js';
+// Full-page dashboard. Reads the same chrome.storage.local data the popup
+// writes (profiles, profileScores, aiEvals, shortlist, folders) and shows it in
+// a roomy, sortable table. Views: All results / Shortlist / any named folder.
+// Writes back the flat shortlist star and the folder store so the popup and
+// other dashboard tabs stay in sync.
 const el = (id) => document.getElementById(id);
 const tbody = el('tbody');
 const emptyEl = el('empty');
@@ -87,101 +93,19 @@ async function load() {
         view = { kind: 'all' };
     document.body.dataset.theme = normalizeUiTheme(data.uiTheme);
 }
+// Thin wrappers binding the pure rows.ts helpers to the module-level state, so
+// existing call sites (inView(url), buildRows(), sortRows(rows)) stay unchanged.
 function inView(url) {
-    // The "All" view is the working results list only. A candidate saved to a
-    // folder but removed from results stays out of All, yet still shows in its
-    // folder view — folders are a persistent save, not just a tag over results.
-    if (view.kind === 'all')
-        return profilesSet.has(url);
-    if (view.kind === 'shortlist')
-        return shortlist.has(url);
-    if (view.kind === 'folder')
-        return folders.members[view.name]?.includes(url) ?? false;
-    return false; // cost view isn't a candidate filter
+    return inViewPure(view, url, { profilesSet, shortlist, folders });
 }
-// Every candidate that any view might show: the working results plus everything
-// saved to a folder or the shortlist (which can outlive the results list). Order
-// is stable — results first, then saved-only extras.
 function universeUrls() {
-    const seen = new Set(profiles);
-    const extra = [];
-    for (const name of folders.order) {
-        for (const u of folders.members[name]) {
-            if (!seen.has(u)) {
-                seen.add(u);
-                extra.push(u);
-            }
-        }
-    }
-    for (const u of shortlist) {
-        if (!seen.has(u)) {
-            seen.add(u);
-            extra.push(u);
-        }
-    }
-    return [...profiles, ...extra];
+    return universeUrlsPure(profiles, folders, shortlist);
 }
 function buildRows() {
-    return universeUrls().map((url) => {
-        const e = scoreEntry(scores, url);
-        let kw = null;
-        let kwLabel = '—';
-        let kwClass = '';
-        if (e) {
-            if (e.success === false) {
-                kwLabel = '⚠️ failed';
-                kwClass = 'score-fail';
-            }
-            else {
-                kw = e.score;
-                kwLabel = e.score + '%';
-                kwClass = e.score === 0 ? 'score-zero' : 'score-good';
-            }
-        }
-        const a = aiEvals[url];
-        let ai = null;
-        let aiLabel = '';
-        if (a) {
-            if (a.error)
-                aiLabel = '⚠️';
-            else {
-                ai = a.score;
-                aiLabel = '✨' + a.score + '%';
-            }
-        }
-        const name = url.split('/in/')[1]?.split('/')[0] || url;
-        return {
-            url,
-            name,
-            kw,
-            kwLabel,
-            kwClass,
-            ai,
-            aiLabel,
-            location: e?.location || '',
-            shortlisted: shortlist.has(url),
-            folders: foldersForUrl(folders, url),
-        };
-    });
+    return buildRowsPure(universeUrls(), { scores, aiEvals, shortlist, folders });
 }
 function sortRows(rows) {
-    const dir = sortDir;
-    return [...rows].sort((a, b) => {
-        if (sortKey === 'name')
-            return a.name.localeCompare(b.name) * dir;
-        if (sortKey === 'location')
-            return a.location.localeCompare(b.location) * dir;
-        // Numeric columns: nulls sort to the bottom regardless of direction.
-        const av = sortKey === 'kw' ? a.kw : a.ai;
-        const bv = sortKey === 'kw' ? b.kw : b.ai;
-        if (av === null && bv === null)
-            return 0;
-        if (av === null)
-            return 1;
-        if (bv === null)
-            return -1;
-        return (av - bv) * dir;
-    });
+    return sortRowsPure(rows, sortKey, sortDir);
 }
 function render() {
     // The Cost tab replaces the candidate workspace with the spend breakdown.
@@ -428,7 +352,7 @@ function setView(next) {
 }
 /** Human name for the current view, used in the export filename and status. */
 function viewScopeName() {
-    return view.kind === 'folder' ? view.name : view.kind;
+    return viewScopeNamePure(view);
 }
 // Export the candidates in the current view (all / shortlist / a folder) to CSV:
 // name, URL, score, location, plus AI score and folders when present.
@@ -558,70 +482,30 @@ function clearSelection() {
 //   • Folder view       → unfile from THAT folder only (stays in results + others).
 //   • Shortlist view    → un-star only.
 // Each records a one-level Undo snapshot; storage.onChanged reloads and re-renders.
-const emptySnapshot = () => ({
-    urls: [],
-    scores: {},
-    aiEvals: {},
-    shortlisted: [],
-    folders: {},
-    count: 0,
-});
+// The compute* helpers in removal.ts read this snapshot of the current state.
+function removalState() {
+    return { profiles, scores, aiEvals, shortlist, folders };
+}
 // Remove from the working results list. Folders/shortlist untouched. Scores/AI are
 // pruned only for candidates no longer saved anywhere (so a folder-saved one keeps
 // its data and still renders in its folder).
 async function removeFromResults(urls) {
-    const keep = profiles.filter((u) => !urls.has(u));
-    const removedList = profiles.filter((u) => urls.has(u));
-    const stillSaved = (u) => shortlist.has(u) || folders.order.some((n) => folders.members[n].includes(u));
-    const nextScores = { ...scores };
-    const nextAi = { ...aiEvals };
-    const snap = emptySnapshot();
-    snap.urls = removedList;
-    snap.count = removedList.length;
-    for (const u of removedList) {
-        if (stillSaved(u))
-            continue; // keep data — its folder row still needs it
-        if (scores[u]) {
-            snap.scores[u] = scores[u];
-            delete nextScores[u];
-        }
-        if (aiEvals[u]) {
-            snap.aiEvals[u] = aiEvals[u];
-            delete nextAi[u];
-        }
-    }
+    const next = computeRemoveFromResults(removalState(), urls);
     selected = new Set();
-    await chrome.storage.local.set({
-        profiles: keep,
-        profileScores: nextScores,
-        aiEvals: nextAi,
-        lastRemoved: snap,
-    });
+    await chrome.storage.local.set(next);
 }
 // Unfile the given candidates from ONE folder. Results, other folders, shortlist,
 // and scores/AI are all left intact.
 async function removeFromFolderView(name, urls) {
-    const removed = [...urls].filter((u) => folders.members[name]?.includes(u));
-    const snap = emptySnapshot();
-    snap.folders = { [name]: removed };
-    snap.count = removed.length;
+    const next = computeRemoveFromFolder(folders, name, urls);
     selected = new Set();
-    await chrome.storage.local.set({
-        folders: removeUrlsFromFolder(folders, name, urls),
-        lastRemoved: snap,
-    });
+    await chrome.storage.local.set(next);
 }
 // Un-star the given candidates. Results and folders are left intact.
 async function removeFromShortlistView(urls) {
-    const removed = [...urls].filter((u) => shortlist.has(u));
-    const snap = emptySnapshot();
-    snap.shortlisted = removed;
-    snap.count = removed.length;
+    const next = computeRemoveFromShortlist(shortlist, urls);
     selected = new Set();
-    await chrome.storage.local.set({
-        shortlist: [...shortlist].filter((u) => !urls.has(u)),
-        lastRemoved: snap,
-    });
+    await chrome.storage.local.set(next);
 }
 // Restore the most recent removal. Adds the candidates back (appended), with
 // their scores / AI evals / shortlist stars and any folder memberships whose
@@ -630,29 +514,9 @@ async function undoRemoval() {
     if (!lastRemoved)
         return;
     const snap = lastRemoved;
-    const have = new Set(profiles);
-    const restoredProfiles = [...profiles, ...snap.urls.filter((u) => !have.has(u))];
-    const restoredScores = { ...scores, ...snap.scores };
-    const restoredAi = { ...aiEvals, ...snap.aiEvals };
-    const restoredShortlist = new Set(shortlist);
-    for (const u of snap.shortlisted)
-        restoredShortlist.add(u);
-    let restoredFolders = folders;
-    for (const name of Object.keys(snap.folders)) {
-        if (!restoredFolders.order.includes(name))
-            continue; // folder since deleted
-        for (const u of snap.folders[name])
-            restoredFolders = addMembership(restoredFolders, name, u);
-    }
+    const restored = computeUndo(removalState(), snap);
     lastRemoved = null;
-    await chrome.storage.local.set({
-        profiles: restoredProfiles,
-        profileScores: restoredScores,
-        aiEvals: restoredAi,
-        shortlist: [...restoredShortlist],
-        folders: restoredFolders,
-        lastRemoved: null,
-    });
+    await chrome.storage.local.set({ ...restored, lastRemoved: null });
     setEvalStatus('↩ Restored ' + (snap.count ?? snap.urls.length) + ' candidate(s).');
 }
 async function removeSelected() {

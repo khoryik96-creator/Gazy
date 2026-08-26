@@ -57,7 +57,9 @@ export default tseslint.config(
     files: ['scripts/**/*.mjs', 'eslint.config.js', 'playwright.config.js', 'e2e/**/*.js'],
     ...tseslint.configs.disableTypeChecked,
     languageOptions: {
-      globals: { ...globals.node },
+      // Node for the spec body; `chrome` is used inside page.evaluate callbacks,
+      // which run in the extension page's browser context.
+      globals: { ...globals.node, chrome: 'readonly' },
     },
   },
 
