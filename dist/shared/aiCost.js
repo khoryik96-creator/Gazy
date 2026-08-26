@@ -40,13 +40,18 @@ export function normalizeAiUsage(raw) {
 export function normalizePrices(raw) {
     const r = (raw ?? {});
     return {
-        chatIn: num(r.chatIn) || DEFAULT_PRICES.chatIn,
-        chatCached: num(r.chatCached) || DEFAULT_PRICES.chatCached,
-        chatOut: num(r.chatOut) || DEFAULT_PRICES.chatOut,
-        reasonerIn: num(r.reasonerIn) || DEFAULT_PRICES.reasonerIn,
-        reasonerCached: num(r.reasonerCached) || DEFAULT_PRICES.reasonerCached,
-        reasonerOut: num(r.reasonerOut) || DEFAULT_PRICES.reasonerOut,
+        chatIn: price(r.chatIn, DEFAULT_PRICES.chatIn),
+        chatCached: price(r.chatCached, DEFAULT_PRICES.chatCached),
+        chatOut: price(r.chatOut, DEFAULT_PRICES.chatOut),
+        reasonerIn: price(r.reasonerIn, DEFAULT_PRICES.reasonerIn),
+        reasonerCached: price(r.reasonerCached, DEFAULT_PRICES.reasonerCached),
+        reasonerOut: price(r.reasonerOut, DEFAULT_PRICES.reasonerOut),
     };
+}
+// Unlike `num`, a stored 0 is a legitimate price (e.g. a free cache-hit rate);
+// only non-numbers / negatives fall back to the default.
+function price(v, dflt) {
+    return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : dflt;
 }
 /** Records one call's token usage against the right model. Immutable. */
 export function addUsage(u, model, inputTokens, outputTokens, cachedTokens = 0) {
@@ -64,15 +69,20 @@ export function addUsage(u, model, inputTokens, outputTokens, cachedTokens = 0) 
     return next;
 }
 /** Estimated USD for one model's usage, splitting input into cache hits/misses. */
-export function modelCostUsd(m, inPrice, cachedPrice, outPrice) {
+export function modelCostUsd(m, p) {
     const cached = Math.min(m.cachedInputTokens, m.inputTokens);
     const miss = m.inputTokens - cached;
-    return (miss / 1e6) * inPrice + (cached / 1e6) * cachedPrice + (m.outputTokens / 1e6) * outPrice;
+    return (miss / 1e6) * p.in + (cached / 1e6) * p.cached + (m.outputTokens / 1e6) * p.out;
+}
+export function chatPrice(p) {
+    return { in: p.chatIn, cached: p.chatCached, out: p.chatOut };
+}
+export function reasonerPrice(p) {
+    return { in: p.reasonerIn, cached: p.reasonerCached, out: p.reasonerOut };
 }
 /** Estimated USD across both models. */
 export function totalCostUsd(u, p) {
-    return (modelCostUsd(u.chat, p.chatIn, p.chatCached, p.chatOut) +
-        modelCostUsd(u.reasoner, p.reasonerIn, p.reasonerCached, p.reasonerOut));
+    return modelCostUsd(u.chat, chatPrice(p)) + modelCostUsd(u.reasoner, reasonerPrice(p));
 }
 export function totalCalls(u) {
     return u.chat.calls + u.reasoner.calls;

@@ -43,6 +43,8 @@ let aiPrices = normalizePrices(undefined);
 let usdToMyr = DEFAULT_USD_TO_MYR;
 // Ephemeral row selection (not persisted) for bulk shortlist / folder actions.
 let selected = new Set();
+// Anchor for Shift-click range selection: the URL of the last row clicked.
+let lastSelUrl = null;
 let view = { kind: 'all' };
 let sortKey = 'kw';
 let sortDir = -1; // default: highest score first
@@ -186,7 +188,8 @@ function render() {
         if (!present.has(u))
             selected.delete(u);
     tbody.replaceChildren();
-    for (const r of rows) {
+    const viewRows = rows; // captured for range selection at click time
+    viewRows.forEach((r, idx) => {
         const tr = document.createElement('tr');
         if (selected.has(r.url))
             tr.className = 'sel';
@@ -195,11 +198,28 @@ function render() {
         chk.type = 'checkbox';
         chk.className = 'selchk';
         chk.checked = selected.has(r.url);
-        chk.addEventListener('change', () => {
-            if (chk.checked)
+        // Use click (not change) so we can read Shift/Ctrl. Shift-click selects the
+        // range from the last-clicked row to this one (in current view order);
+        // plain/Ctrl click toggles just this row. `chk.checked` is the post-click state.
+        chk.addEventListener('click', (e) => {
+            const on = chk.checked;
+            const anchorIdx = lastSelUrl ? viewRows.findIndex((row) => row.url === lastSelUrl) : -1;
+            if (e.shiftKey && anchorIdx !== -1) {
+                const [lo, hi] = anchorIdx < idx ? [anchorIdx, idx] : [idx, anchorIdx];
+                for (let k = lo; k <= hi; k++) {
+                    if (on)
+                        selected.add(viewRows[k].url);
+                    else
+                        selected.delete(viewRows[k].url);
+                }
+            }
+            else if (on) {
                 selected.add(r.url);
-            else
+            }
+            else {
                 selected.delete(r.url);
+            }
+            lastSelUrl = r.url;
             render();
         });
         selTd.appendChild(chk);
@@ -234,17 +254,18 @@ function render() {
         locTd.textContent = r.location;
         tr.appendChild(locTd);
         tbody.appendChild(tr);
-    }
+    });
     const total = profiles.length;
     const shortCount = profiles.filter((u) => shortlist.has(u)).length;
     emptyEl.style.display = rows.length === 0 ? 'block' : 'none';
     tableEl.style.display = rows.length === 0 ? 'none' : '';
+    const tip = rows.length > 1 ? ' · Shift-click a checkbox to select a range' : '';
     summaryEl.textContent =
-        view.kind === 'shortlist'
+        (view.kind === 'shortlist'
             ? shortCount + ' shortlisted candidate(s)'
             : view.kind === 'folder'
                 ? rows.length + ' candidate(s) in “' + view.name + '”'
-                : total + ' candidate(s) · ' + shortCount + ' shortlisted';
+                : total + ' candidate(s) · ' + shortCount + ' shortlisted') + tip;
     renderFolderBar();
     renameFolderBtn.style.display = view.kind === 'folder' ? '' : 'none';
     deleteFolderBtn.style.display = view.kind === 'folder' ? '' : 'none';

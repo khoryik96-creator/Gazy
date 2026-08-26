@@ -1,5 +1,11 @@
-import { modelCostUsd, totalCostUsd, totalCalls } from '../shared/aiCost.js';
-import type { AiUsage, AiPrices, ModelUsage } from '../shared/aiCost.js';
+import {
+  modelCostUsd,
+  totalCostUsd,
+  totalCalls,
+  chatPrice,
+  reasonerPrice,
+} from '../shared/aiCost.js';
+import type { AiUsage, AiPrices, ModelUsage, ModelPrice } from '../shared/aiCost.js';
 
 // Renders the Cost tab: AI-evaluation spend estimated from tracked token usage,
 // shown in USD and MYR. Presentation only — it reports edits (FX rate, prices,
@@ -24,7 +30,7 @@ export function renderCostPanel(container: HTMLElement, o: CostPanelOpts): void 
   const usd = totalCostUsd(o.usage, o.prices);
   const myr = usd * o.usdToMyr;
 
-  const row = (label: string, m: ModelUsage, inP: number, cachedP: number, outP: number): string =>
+  const row = (label: string, m: ModelUsage, p: ModelPrice): string =>
     '<tr><td>' +
     label +
     '</td><td class="num">' +
@@ -36,7 +42,7 @@ export function renderCostPanel(container: HTMLElement, o: CostPanelOpts): void 
     '</td><td class="num">' +
     tokens(m.outputTokens) +
     '</td><td class="num">' +
-    money(modelCostUsd(m, inP, cachedP, outP), '$') +
+    money(modelCostUsd(m, p), '$') +
     '</td></tr>';
 
   container.innerHTML = `
@@ -64,8 +70,8 @@ export function renderCostPanel(container: HTMLElement, o: CostPanelOpts): void 
           <th class="num">of which cached</th><th class="num">Output tokens</th><th class="num">Est. USD</th>
         </tr></thead>
         <tbody>
-          ${row('⚡ deepseek-chat', o.usage.chat, o.prices.chatIn, o.prices.chatCached, o.prices.chatOut)}
-          ${row('🧠 deepseek-reasoner', o.usage.reasoner, o.prices.reasonerIn, o.prices.reasonerCached, o.prices.reasonerOut)}
+          ${row('⚡ deepseek-chat', o.usage.chat, chatPrice(o.prices))}
+          ${row('🧠 deepseek-reasoner', o.usage.reasoner, reasonerPrice(o.prices))}
         </tbody>
       </table>
     </div>
