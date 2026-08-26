@@ -5,7 +5,12 @@ import type { AiEvalEntry, AiModel } from '../shared/types.js';
 /** Minimal shape of the OpenAI-compatible chat-completions response we read. */
 interface ChatCompletionResponse {
   choices?: { message?: { content?: string } }[];
-  usage?: { prompt_tokens?: number; completion_tokens?: number };
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    /** DeepSeek extension: prompt tokens served from the context cache (cheaper). */
+    prompt_cache_hit_tokens?: number;
+  };
   error?: { message?: string };
 }
 
@@ -21,6 +26,7 @@ export interface EvaluateResult {
   entry: AiEvalEntry;
   inputTokens: number;
   outputTokens: number;
+  cachedTokens: number;
 }
 
 /**
@@ -70,5 +76,6 @@ export async function evaluateProfile({
     entry: parseEvaluationResponse(content),
     inputTokens: data.usage?.prompt_tokens ?? 0,
     outputTokens: data.usage?.completion_tokens ?? 0,
+    cachedTokens: data.usage?.prompt_cache_hit_tokens ?? 0,
   };
 }

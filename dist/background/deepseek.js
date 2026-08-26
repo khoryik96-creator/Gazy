@@ -38,5 +38,6 @@ export async function evaluateProfile({ apiKey, model, jd, profileText, }) {
         entry: parseEvaluationResponse(content),
         inputTokens: data.usage?.prompt_tokens ?? 0,
         outputTokens: data.usage?.completion_tokens ?? 0,
+        cachedTokens: data.usage?.prompt_cache_hit_tokens ?? 0,
     };
 }

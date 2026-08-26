@@ -54,7 +54,7 @@ async function runAiEvalLoop(req) {
                     profileText: data.fullText,
                 });
                 entry = result.entry;
-                usage = addUsage(usage, req.model, result.inputTokens, result.outputTokens);
+                usage = addUsage(usage, req.model, result.inputTokens, result.outputTokens, result.cachedTokens);
             }
             catch (e) {
                 entry = { score: 0, reason: '', matched: [], missing: [], error: e.message };
