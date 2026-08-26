@@ -8,6 +8,7 @@ export const dom = {
   keywordsInput: id<HTMLInputElement>('keywordsInput'),
   booleanRuleInput: id<HTMLInputElement>('booleanRule'),
   countryFilterInput: id<HTMLInputElement>('countryFilter'),
+  countryListEl: id<HTMLDataListElement>('countryList'),
   searchBtn: id<HTMLButtonElement>('searchBtn'),
   clearBtn: id<HTMLButtonElement>('clearBtn'),
   copyAllBtn: id<HTMLButtonElement>('copyAllBtn'),

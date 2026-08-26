@@ -4,6 +4,7 @@ import { extractKeywordsFromJD } from '../shared/keywordExtraction.js';
 import { compileBooleanRule } from '../shared/booleanExpression.js';
 import { clampScanPages } from '../shared/pagination.js';
 import { DEFAULT_SCAN_PAGES, MAX_SCAN_PAGES } from '../shared/constants.js';
+import { COUNTRIES, canonicalCountry } from '../shared/countries.js';
 import { readJdFile } from './fileImport.js';
 import type { AiModel, Template } from '../shared/types.js';
 
@@ -55,6 +56,22 @@ export function initSidebar(): void {
   [jd, keywords, boolean, country].forEach((input) =>
     input.addEventListener('input', saveFormData),
   );
+
+  // ---- Location: a country combobox (free text still allowed) ----
+  const countryList = el<HTMLDataListElement>('countryList');
+  for (const name of COUNTRIES) {
+    const opt = document.createElement('option');
+    opt.value = name;
+    countryList.appendChild(opt);
+  }
+  // Snap a typed country to its canonical spelling (e.g. "malaysia" → "Malaysia").
+  country.addEventListener('change', () => {
+    const canon = canonicalCountry(country.value);
+    if (canon !== country.value) {
+      country.value = canon;
+      saveFormData();
+    }
+  });
 
   // ---- Drop / attach a JD file (.txt / .docx / .pdf) ----
   const jdDrop = el<HTMLDivElement>('jdDrop');

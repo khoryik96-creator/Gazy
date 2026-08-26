@@ -48,7 +48,14 @@
           </div>
           <div class="side-field">
             <label class="side-lab" for="countryFilter">Location</label>
-            <input type="text" id="countryFilter" class="side-inp" placeholder="United States" />
+            <input
+              type="text"
+              id="countryFilter"
+              class="side-inp"
+              list="countryList"
+              placeholder="Country, or a city/region"
+            />
+            <datalist id="countryList"></datalist>
           </div>
           <button id="searchBtn" class="tbtn block">🔎 Search LinkedIn</button>
           <span id="searchStatus" class="side-status"></span>

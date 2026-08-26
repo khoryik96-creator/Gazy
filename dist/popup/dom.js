@@ -7,6 +7,7 @@ export const dom = {
     keywordsInput: id('keywordsInput'),
     booleanRuleInput: id('booleanRule'),
     countryFilterInput: id('countryFilter'),
+    countryListEl: id('countryList'),
     searchBtn: id('searchBtn'),
     clearBtn: id('clearBtn'),
     copyAllBtn: id('copyAllBtn'),
