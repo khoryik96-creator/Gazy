@@ -101,8 +101,93 @@ const STOP_WORDS = new Set([
     'most',
     'us',
 ]);
+// Requirement terms we deliberately don't score against: education / degrees and
+// language proficiency. These describe eligibility, not the role's skills, and
+// otherwise inflate cross-role false positives (a JD's "Bachelor's degree,
+// fluent in English" shouldn't reward every profile that mentions a degree or
+// English). Applied only to JD-derived keywords — a keyword or Boolean the user
+// types explicitly is always respected.
+const IGNORED_JD_TERMS = new Set([
+    // Education / degrees
+    'degree',
+    'degrees',
+    'bachelor',
+    'bachelors',
+    'master',
+    'masters',
+    'phd',
+    'doctorate',
+    'doctoral',
+    'mba',
+    'bsc',
+    'msc',
+    'beng',
+    'meng',
+    'diploma',
+    'diplomas',
+    'undergraduate',
+    'postgraduate',
+    'graduate',
+    'graduated',
+    'graduation',
+    'university',
+    'universities',
+    'college',
+    'education',
+    'educational',
+    'gpa',
+    'cgpa',
+    'qualification',
+    'qualifications',
+    'honours',
+    'honors',
+    'accredited',
+    'major',
+    'coursework',
+    // Language proficiency
+    'language',
+    'languages',
+    'fluent',
+    'fluency',
+    'proficiency',
+    'proficient',
+    'bilingual',
+    'multilingual',
+    'native',
+    'speaker',
+    'speaking',
+    'verbal',
+    'english',
+    'malay',
+    'bahasa',
+    'mandarin',
+    'chinese',
+    'cantonese',
+    'tamil',
+    'hindi',
+    'spanish',
+    'french',
+    'german',
+    'japanese',
+    'korean',
+    'arabic',
+    'portuguese',
+    'russian',
+    'italian',
+    'dutch',
+    'thai',
+    'vietnamese',
+    'indonesian',
+    'tagalog',
+    'urdu',
+    'bengali',
+]);
 function isStopword(word) {
     return word.length <= 2 || STOP_WORDS.has(word) || /^\d+$/.test(word);
+}
+/** True for words we drop from JD-derived keywords: stopwords + ignored terms. */
+function isJdNoise(word) {
+    return isStopword(word) || IGNORED_JD_TERMS.has(word);
 }
 export function filterStopwords(words) {
     return words.filter((w) => !isStopword(w));
@@ -116,7 +201,7 @@ export function extractKeywordsFromJD(jd) {
         .split(/\s+/);
     const wordScores = {};
     words.forEach((w) => {
-        if (!isStopword(w))
+        if (!isJdNoise(w))
             wordScores[w] = (wordScores[w] || 0) + 1;
     });
     const sorted = Object.entries(wordScores)
@@ -126,8 +211,13 @@ export function extractKeywordsFromJD(jd) {
     const phrases = [];
     const jdWords = jd.toLowerCase().split(/\s+/);
     for (let i = 0; i < jdWords.length - 2; i++) {
-        const phrase = jdWords.slice(i, i + 3).join(' ');
-        if (phrase.length > 5 && !STOP_WORDS.has(jdWords[i]) && !STOP_WORDS.has(jdWords[i + 1])) {
+        const trio = jdWords.slice(i, i + 3);
+        const phrase = trio.join(' ');
+        // Skip a phrase that leads with a stopword or contains an ignored term.
+        if (phrase.length > 5 &&
+            !STOP_WORDS.has(jdWords[i]) &&
+            !STOP_WORDS.has(jdWords[i + 1]) &&
+            !trio.some((w) => IGNORED_JD_TERMS.has(w.replace(/[^a-z0-9#+]/g, '')))) {
             phrases.push(phrase);
         }
     }

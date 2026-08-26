@@ -3,8 +3,35 @@ import assert from 'node:assert/strict';
 import {
   getScoringKeywords,
   extractKeywordsFromBoolean,
+  extractKeywordsFromJD,
   filterStopwords,
 } from '../dist/shared/keywordExtraction.js';
+
+test('JD keywords ignore education, degree and language requirements', () => {
+  const jd =
+    'Product Owner. Bachelor degree required. Fluent in English and Malay. ' +
+    'Own the product roadmap and backlog with stakeholders.';
+  const kws = getScoringKeywords({ manual: '', booleanRule: '', jd });
+  const set = new Set(kws.map((k) => k.toLowerCase()));
+  for (const noise of ['bachelor', 'degree', 'english', 'malay', 'fluent', 'university']) {
+    assert.ok(!set.has(noise), 'should not score against "' + noise + '"');
+  }
+  // The real role skills still come through.
+  assert.ok(kws.some((k) => k.toLowerCase().includes('product')));
+  assert.ok(
+    kws.some((k) => k.toLowerCase().includes('roadmap') || k.toLowerCase().includes('backlog')),
+  );
+});
+
+test('extractKeywordsFromJD drops degree/language phrases', () => {
+  const out = extractKeywordsFromJD("Bachelor's degree in Computer Science, fluent English");
+  assert.ok(!/degree|bachelor|english|fluent/i.test(out));
+});
+
+test('explicitly typed keywords are still respected (not filtered as noise)', () => {
+  // If a user really wants to score on a language, typing it manually keeps it.
+  assert.deepEqual(getScoringKeywords({ manual: 'english mandarin' }), ['english', 'mandarin']);
+});
 
 test('manual keywords take precedence and drop stopwords', () => {
   assert.deepEqual(
