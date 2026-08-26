@@ -110,6 +110,18 @@ export function removeUrlsFromFolders(store: FolderStore, urls: Set<string>): Fo
   return next;
 }
 
+/** Removes the given URLs from ONE folder only (unfile). No-op for unknown folders. */
+export function removeUrlsFromFolder(
+  store: FolderStore,
+  name: string,
+  urls: Set<string>,
+): FolderStore {
+  if (!store.order.includes(name)) return store;
+  const next = clone(store);
+  next.members[name] = next.members[name].filter((u) => !urls.has(u));
+  return next;
+}
+
 /** The folders a given candidate belongs to, in display order. */
 export function foldersForUrl(store: FolderStore, url: string): string[] {
   return store.order.filter((name) => store.members[name]?.includes(url));

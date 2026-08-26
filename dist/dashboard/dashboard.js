@@ -1,7 +1,7 @@
 import { scoreEntry } from '../shared/scoreView.js';
 import { normalizeUiTheme } from '../shared/themes.js';
 import { MESSAGE } from '../shared/constants.js';
-import { emptyFolderStore, normalizeFolderStore, normalizeFolderName, createFolder, renameFolder, deleteFolder, toggleMembership, addMembership, removeUrlsFromFolders, foldersForUrl, folderCount, } from '../shared/folders.js';
+import { emptyFolderStore, normalizeFolderStore, normalizeFolderName, createFolder, renameFolder, deleteFolder, toggleMembership, addMembership, removeUrlsFromFolder, foldersForUrl, folderCount, } from '../shared/folders.js';
 import { openFolderMenu, openFolderPickMenu, closeFolderMenu } from './folderMenu.js';
 import { initSidebar } from './sidebar.js';
 import { renderCostPanel } from './costPanel.js';
@@ -37,6 +37,9 @@ const bulkFolderBtn = el('bulkFolder');
 const bulkRemoveBtn = el('bulkRemove');
 const bulkClearBtn = el('bulkClear');
 let profiles = [];
+// Fast membership test for "is this URL in the working results list?" — the All
+// view and results-removal use it. Rebuilt in load().
+let profilesSet = new Set();
 let scores = {};
 let aiEvals = {};
 let shortlist = new Set();
@@ -67,6 +70,7 @@ async function load() {
         'uiTheme',
     ]));
     profiles = data.profiles || [];
+    profilesSet = new Set(profiles);
     scores = data.profileScores || {};
     aiEvals = data.aiEvals || {};
     shortlist = new Set(data.shortlist || []);
@@ -82,16 +86,41 @@ async function load() {
     document.body.dataset.theme = normalizeUiTheme(data.uiTheme);
 }
 function inView(url) {
+    // The "All" view is the working results list only. A candidate saved to a
+    // folder but removed from results stays out of All, yet still shows in its
+    // folder view — folders are a persistent save, not just a tag over results.
     if (view.kind === 'all')
-        return true;
+        return profilesSet.has(url);
     if (view.kind === 'shortlist')
         return shortlist.has(url);
     if (view.kind === 'folder')
         return folders.members[view.name]?.includes(url) ?? false;
     return false; // cost view isn't a candidate filter
 }
+// Every candidate that any view might show: the working results plus everything
+// saved to a folder or the shortlist (which can outlive the results list). Order
+// is stable — results first, then saved-only extras.
+function universeUrls() {
+    const seen = new Set(profiles);
+    const extra = [];
+    for (const name of folders.order) {
+        for (const u of folders.members[name]) {
+            if (!seen.has(u)) {
+                seen.add(u);
+                extra.push(u);
+            }
+        }
+    }
+    for (const u of shortlist) {
+        if (!seen.has(u)) {
+            seen.add(u);
+            extra.push(u);
+        }
+    }
+    return [...profiles, ...extra];
+}
 function buildRows() {
-    return profiles.map((url) => {
+    return universeUrls().map((url) => {
         const e = scoreEntry(scores, url);
         let kw = null;
         let kwLabel = '—';
@@ -517,49 +546,78 @@ function clearSelection() {
     selected = new Set();
     render();
 }
-// ---- Remove candidates: selected, or all ----
-// Wipe the given candidates from every store (profiles, scores, AI evals,
-// shortlist, folder membership) in one storage write, stashing a snapshot so the
-// removal can be undone. storage.onChanged then reloads and re-renders.
-async function removeCandidates(urls) {
+// ---- Remove candidates (view-aware) ----
+//
+// Folders and the shortlist are persistent saves, so what "Remove" means depends
+// on where you are:
+//   • All / results view → drop from the working results only. Anyone saved to a
+//     folder or the shortlist STAYS saved (still shows in that folder), it just
+//     leaves the All list.
+//   • Folder view       → unfile from THAT folder only (stays in results + others).
+//   • Shortlist view    → un-star only.
+// Each records a one-level Undo snapshot; storage.onChanged reloads and re-renders.
+const emptySnapshot = () => ({
+    urls: [],
+    scores: {},
+    aiEvals: {},
+    shortlisted: [],
+    folders: {},
+    count: 0,
+});
+// Remove from the working results list. Folders/shortlist untouched. Scores/AI are
+// pruned only for candidates no longer saved anywhere (so a folder-saved one keeps
+// its data and still renders in its folder).
+async function removeFromResults(urls) {
     const keep = profiles.filter((u) => !urls.has(u));
-    const nextScores = {};
-    for (const u of keep)
-        if (scores[u])
-            nextScores[u] = scores[u];
-    const nextAi = {};
-    for (const u of keep)
-        if (aiEvals[u])
-            nextAi[u] = aiEvals[u];
-    const nextShortlist = [...shortlist].filter((u) => !urls.has(u));
-    const nextFolders = removeUrlsFromFolders(folders, urls);
-    // Snapshot exactly what's being removed so Undo can restore it.
     const removedList = profiles.filter((u) => urls.has(u));
-    const snap = {
-        urls: removedList,
-        scores: {},
-        aiEvals: {},
-        shortlisted: removedList.filter((u) => shortlist.has(u)),
-        folders: {},
-    };
+    const stillSaved = (u) => shortlist.has(u) || folders.order.some((n) => folders.members[n].includes(u));
+    const nextScores = { ...scores };
+    const nextAi = { ...aiEvals };
+    const snap = emptySnapshot();
+    snap.urls = removedList;
+    snap.count = removedList.length;
     for (const u of removedList) {
-        if (scores[u])
+        if (stillSaved(u))
+            continue; // keep data — its folder row still needs it
+        if (scores[u]) {
             snap.scores[u] = scores[u];
-        if (aiEvals[u])
+            delete nextScores[u];
+        }
+        if (aiEvals[u]) {
             snap.aiEvals[u] = aiEvals[u];
-    }
-    for (const name of folders.order) {
-        const inFolder = removedList.filter((u) => folders.members[name].includes(u));
-        if (inFolder.length)
-            snap.folders[name] = inFolder;
+            delete nextAi[u];
+        }
     }
     selected = new Set();
     await chrome.storage.local.set({
         profiles: keep,
         profileScores: nextScores,
         aiEvals: nextAi,
-        shortlist: nextShortlist,
-        folders: nextFolders,
+        lastRemoved: snap,
+    });
+}
+// Unfile the given candidates from ONE folder. Results, other folders, shortlist,
+// and scores/AI are all left intact.
+async function removeFromFolderView(name, urls) {
+    const removed = [...urls].filter((u) => folders.members[name]?.includes(u));
+    const snap = emptySnapshot();
+    snap.folders = { [name]: removed };
+    snap.count = removed.length;
+    selected = new Set();
+    await chrome.storage.local.set({
+        folders: removeUrlsFromFolder(folders, name, urls),
+        lastRemoved: snap,
+    });
+}
+// Un-star the given candidates. Results and folders are left intact.
+async function removeFromShortlistView(urls) {
+    const removed = [...urls].filter((u) => shortlist.has(u));
+    const snap = emptySnapshot();
+    snap.shortlisted = removed;
+    snap.count = removed.length;
+    selected = new Set();
+    await chrome.storage.local.set({
+        shortlist: [...shortlist].filter((u) => !urls.has(u)),
         lastRemoved: snap,
     });
 }
@@ -593,16 +651,37 @@ async function undoRemoval() {
         folders: restoredFolders,
         lastRemoved: null,
     });
-    setEvalStatus('↩ Restored ' + snap.urls.length + ' candidate(s).');
+    setEvalStatus('↩ Restored ' + (snap.count ?? snap.urls.length) + ' candidate(s).');
 }
 async function removeSelected() {
     if (selected.size === 0)
         return;
-    const n = selected.size;
-    if (!confirm('Remove ' + n + ' selected candidate(s) from the dashboard?'))
-        return;
-    await removeCandidates(new Set(selected));
-    setEvalStatus('🗑 Removed ' + n + ' candidate(s).');
+    const urls = new Set(selected);
+    const n = urls.size;
+    if (view.kind === 'folder') {
+        if (!confirm('Remove ' +
+            n +
+            ' candidate(s) from “' +
+            view.name +
+            '”?\nThey stay in your results and any other folders.'))
+            return;
+        await removeFromFolderView(view.name, urls);
+        setEvalStatus('🗑 Removed ' + n + ' from “' + view.name + '”.');
+    }
+    else if (view.kind === 'shortlist') {
+        if (!confirm('Remove ' + n + ' candidate(s) from the shortlist?\nThey stay in your results and folders.'))
+            return;
+        await removeFromShortlistView(urls);
+        setEvalStatus('🗑 Removed ' + n + ' from the shortlist.');
+    }
+    else {
+        if (!confirm('Remove ' +
+            n +
+            ' candidate(s) from the results?\nAnyone saved to a folder or the shortlist is kept there.'))
+            return;
+        await removeFromResults(urls);
+        setEvalStatus('🗑 Removed ' + n + ' candidate(s).');
+    }
 }
 async function clearAll() {
     if (profiles.length === 0)
@@ -621,7 +700,7 @@ async function clearAll() {
     const keptNote = saved.size > 0 ? ' ' + saved.size + ' saved (folder/shortlist) candidate(s) are kept.' : '';
     if (!confirm('Remove ' + toRemove.size + ' unsaved candidate(s)?' + keptNote))
         return;
-    await removeCandidates(toRemove);
+    await removeFromResults(toRemove);
     setEvalStatus('🗑 Cleared ' + toRemove.size + ' candidate(s).' + keptNote);
 }
 // ---- Cost tab: persist the editable FX rate / prices, reset counters ----
@@ -677,7 +756,9 @@ function setEvalStatus(text) {
 // The set of candidates the AI-Evaluate button acts on: whatever the active view
 // shows (all results, the shortlist, or a folder).
 function viewUrls() {
-    return profiles.filter((u) => inView(u));
+    // Universe (not just results) so a folder view scores/evaluates all its members,
+    // including any saved candidates no longer in the working results list.
+    return universeUrls().filter((u) => inView(u));
 }
 // Kick off AI evaluation from the dashboard. Reads the same DeepSeek key/model
 // and job-description form data the popup persists to storage, then hands the
