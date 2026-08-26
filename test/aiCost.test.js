@@ -42,7 +42,7 @@ test('modelCostUsd splits input into cache hits (cheaper) and misses', () => {
   // 1M input of which 400k cached, 500k output.
   const m = { calls: 1, inputTokens: 1_000_000, cachedInputTokens: 400_000, outputTokens: 500_000 };
   const expected = (600_000 / 1e6) * 0.27 + (400_000 / 1e6) * 0.07 + (500_000 / 1e6) * 1.1;
-  assert.ok(Math.abs(modelCostUsd(m, 0.27, 0.07, 1.1) - expected) < 1e-9);
+  assert.ok(Math.abs(modelCostUsd(m, { in: 0.27, cached: 0.07, out: 1.1 }) - expected) < 1e-9);
 });
 
 test('totalCostUsd uses cache-hit pricing across models', () => {
@@ -60,7 +60,9 @@ test('normalizeAiUsage / normalizePrices tolerate junk', () => {
     cachedInputTokens: 0,
     outputTokens: 0,
   });
-  const p = normalizePrices({ chatIn: 0 }); // 0 falls back to default
+  // 0 is a legitimate price (e.g. free cache reads) and is kept; negatives/junk
+  // fall back to the default.
+  const p = normalizePrices({ chatCached: 0, chatIn: -1 });
+  assert.equal(p.chatCached, 0);
   assert.equal(p.chatIn, DEFAULT_PRICES.chatIn);
-  assert.equal(p.chatCached, DEFAULT_PRICES.chatCached);
 });
