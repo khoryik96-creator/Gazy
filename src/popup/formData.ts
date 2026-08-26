@@ -1,5 +1,6 @@
 import { dom } from './dom.js';
 import { getStorage, setStorage } from './storage.js';
+import { COUNTRIES, canonicalCountry } from '../shared/countries.js';
 import type { Template } from '../shared/types.js';
 
 export function saveFormData(): void {
@@ -28,6 +29,22 @@ export function initFormPersistence(): void {
       input.addEventListener('input', saveFormData);
     },
   );
+
+  // Location combobox: fill the country dropdown and snap a typed country to its
+  // canonical spelling (e.g. "malaysia" → "Malaysia").
+  for (const name of COUNTRIES) {
+    const opt = document.createElement('option');
+    opt.value = name;
+    dom.countryListEl.appendChild(opt);
+  }
+  dom.countryFilterInput.addEventListener('change', () => {
+    const canon = canonicalCountry(dom.countryFilterInput.value);
+    if (canon !== dom.countryFilterInput.value) {
+      dom.countryFilterInput.value = canon;
+      saveFormData();
+    }
+  });
+
   void loadFormData();
 }
 
