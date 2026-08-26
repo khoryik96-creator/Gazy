@@ -32,7 +32,7 @@ your status changes.
 > **patch** (x.y.Z) for fixes/tweaks, **minor** (x.Y.0) for a new user-facing
 > feature. `npm version <v> --no-git-tag-version` updates package.json + lock;
 > hand-edit `src/manifest.json` to match, then `npm run build` so `dist/manifest.json`
-> updates too. Current: **1.25.0**.
+> updates too. Current: **1.26.0**.
 
 > 🧱 **Every feature must be modular, efficient, and non-regressing** (owner's
 > standing rule, 2026-08-24). New work goes in its OWN file in the right layer
@@ -45,6 +45,7 @@ your status changes.
 
 ## Status log
 
+| 2026-08-26 | claude/chrome-extension-architecture-cj7pul | EVALUATE/SCORE SELECTED (v1.26.0): dashboard bulk bar gains "⭐ Score selected" + "✦ AI Evaluate selected" — run on just the checked rows so an interrupted AI scan can resume on a subset instead of re-running all. startEval/startScoring take an optional target url[] (default viewUrls()); setRunning disables the bulk run buttons too. | done (unmerged) |
 | 2026-08-24 | claude/multi-account-project-rcmfpz | UNDO REMOVE (v1.23.0): removeCandidates now stashes a RemovedSnapshot (urls+scores+aiEvals+shortlisted+folder memberships) to storage `lastRemoved`; ↩ Undo remove button (toolbar, shown when a snapshot exists) restores everything incl. folder membership (skips since-deleted folders). One-level undo, persisted across reloads. Covers both Clear results and Remove selected. | done |
 | 2026-08-24 | claude/multi-account-project-rcmfpz | FIX: CLEAR ALL WIPED FOLDER/SHORTLIST CDDS (v1.22.1): clearAll now protects candidates in any folder or the shortlist — only removes UNsaved results. Button relabelled "🗑 Clear results" + tooltip; confirm says how many saved are kept; no-op msg if all are saved. removeCandidates unchanged (Remove selected still removes exactly what's picked). | done |
 | 2026-08-24 | claude/multi-account-project-rcmfpz | SHIFT-SELECT + COST REVIEW FIXES (v1.22.0): dashboard checkbox now click-handled — Shift-click selects a range (anchor = last-clicked url, current view order), plain/Ctrl toggles one; summary shows the tip. Review fixes: aiCost price() allows 0 (free cache rate); modelCostUsd takes a named ModelPrice object (chatPrice/reasonerPrice helpers) so prices can't be swapped positionally. (Historical usage still all-miss — no data to recover cache split.) | done |
