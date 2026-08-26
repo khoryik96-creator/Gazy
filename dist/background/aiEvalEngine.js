@@ -2,6 +2,7 @@ import { MESSAGE } from '../shared/constants.js';
 import { fetchProfileData } from './profileFetcher.js';
 import { evaluateProfile } from './deepseek.js';
 let running = false;
+let stopRequested = false;
 /**
  * Kicks off an AI-evaluation run and returns immediately; the run itself
  * (runAiEvalLoop) is detached. We must NOT make the caller await the whole loop:
@@ -15,7 +16,12 @@ export function startAiEval(req) {
     if (running)
         return;
     running = true;
+    stopRequested = false;
     void runAiEvalLoop(req);
+}
+/** Requests the in-flight AI-evaluation run stop after the current profile. */
+export function stopAiEval() {
+    stopRequested = true;
 }
 /**
  * Evaluates each profile with DeepSeek, sequentially. Profile text comes from
@@ -33,6 +39,8 @@ async function runAiEvalLoop(req) {
     let index = 0;
     try {
         for (const url of req.profiles) {
+            if (stopRequested)
+                break; // user hit Stop — leave what's done, bail out
             index++;
             let entry;
             try {

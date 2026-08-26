@@ -10,6 +10,7 @@ import {
   deleteFolder,
   toggleMembership,
   addMembership,
+  removeUrlsFromFolders,
   foldersForUrl,
   folderCount,
 } from '../shared/folders.js';
@@ -51,7 +52,9 @@ const summaryEl = el<HTMLDivElement>('summary');
 const tableEl = el<HTMLTableElement>('tbl');
 const scoreBtn = el<HTMLButtonElement>('scoreBtn');
 const aiEvalBtn = el<HTMLButtonElement>('aiEvalBtn');
+const stopBtn = el<HTMLButtonElement>('stopBtn');
 const exportBtn = el<HTMLButtonElement>('exportBtn');
+const clearAllBtn = el<HTMLButtonElement>('clearAllBtn');
 const evalStatusEl = el<HTMLSpanElement>('evalStatus');
 const folderBar = el<HTMLDivElement>('folderBar');
 const renameFolderBtn = el<HTMLButtonElement>('renameFolderBtn');
@@ -62,6 +65,7 @@ const bulkCountEl = el<HTMLSpanElement>('bulkCount');
 const bulkShortlistBtn = el<HTMLButtonElement>('bulkShortlist');
 const bulkUnshortlistBtn = el<HTMLButtonElement>('bulkUnshortlist');
 const bulkFolderBtn = el<HTMLButtonElement>('bulkFolder');
+const bulkRemoveBtn = el<HTMLButtonElement>('bulkRemove');
 const bulkClearBtn = el<HTMLButtonElement>('bulkClear');
 
 let profiles: string[] = [];
@@ -473,17 +477,81 @@ function clearSelection(): void {
   render();
 }
 
+// ---- Remove candidates: selected, or all ----
+
+// Wipe the given candidates from every store (profiles, scores, AI evals,
+// shortlist, folder membership) in one storage write; storage.onChanged then
+// reloads and re-renders.
+async function removeCandidates(urls: Set<string>): Promise<void> {
+  const keep = profiles.filter((u) => !urls.has(u));
+  const nextScores: ScoresMap = {};
+  for (const u of keep) if (scores[u]) nextScores[u] = scores[u];
+  const nextAi: AiEvalMap = {};
+  for (const u of keep) if (aiEvals[u]) nextAi[u] = aiEvals[u];
+  const nextShortlist = [...shortlist].filter((u) => !urls.has(u));
+  const nextFolders = removeUrlsFromFolders(folders, urls);
+  selected = new Set();
+  await chrome.storage.local.set({
+    profiles: keep,
+    profileScores: nextScores,
+    aiEvals: nextAi,
+    shortlist: nextShortlist,
+    folders: nextFolders,
+  });
+}
+
+async function removeSelected(): Promise<void> {
+  if (selected.size === 0) return;
+  const n = selected.size;
+  if (!confirm('Remove ' + n + ' selected candidate(s) from the dashboard?')) return;
+  await removeCandidates(new Set(selected));
+  setEvalStatus('🗑 Removed ' + n + ' candidate(s).');
+}
+
+async function clearAll(): Promise<void> {
+  if (profiles.length === 0) return;
+  const n = profiles.length;
+  if (
+    !confirm(
+      'Remove ALL ' +
+        n +
+        ' candidates? This also clears their scores, AI evals and shortlist. Folder names are kept but emptied.',
+    )
+  ) {
+    return;
+  }
+  await removeCandidates(new Set(profiles));
+  setEvalStatus('🗑 Cleared all ' + n + ' candidate(s).');
+}
+
 el<HTMLButtonElement>('tabAll').addEventListener('click', () => setView({ kind: 'all' }));
 el<HTMLButtonElement>('tabShort').addEventListener('click', () => setView({ kind: 'shortlist' }));
 renameFolderBtn.addEventListener('click', () => void renameActiveFolder());
 deleteFolderBtn.addEventListener('click', () => void deleteActiveFolder());
 exportBtn.addEventListener('click', exportCsv);
+clearAllBtn.addEventListener('click', () => void clearAll());
+stopBtn.addEventListener('click', stopRuns);
 selectAllEl.addEventListener('change', toggleSelectAll);
 bulkShortlistBtn.addEventListener('click', () => void bulkSetShortlist(true));
 bulkUnshortlistBtn.addEventListener('click', () => void bulkSetShortlist(false));
 bulkFolderBtn.addEventListener('click', bulkAddToFolder);
+bulkRemoveBtn.addEventListener('click', () => void removeSelected());
 bulkClearBtn.addEventListener('click', clearSelection);
 initHeaderSort();
+
+// ---- Run state: show Stop + disable Score/AI while a run is in flight ----
+function setRunning(on: boolean): void {
+  stopBtn.style.display = on ? '' : 'none';
+  scoreBtn.disabled = on;
+  aiEvalBtn.disabled = on;
+}
+
+function stopRuns(): void {
+  void chrome.runtime.sendMessage({ type: MESSAGE.STOP_SCORING }).catch(() => {});
+  void chrome.runtime.sendMessage({ type: MESSAGE.STOP_AI_EVAL }).catch(() => {});
+  setEvalStatus('⏹ Stopping…');
+  setRunning(false);
+}
 
 function setEvalStatus(text: string): void {
   evalStatusEl.textContent = text;
@@ -541,13 +609,13 @@ async function startEval(): Promise<void> {
     return;
   }
 
-  aiEvalBtn.disabled = true;
+  setRunning(true);
   setEvalStatus('✦ Evaluating ' + urls.length + ' candidate(s)…');
   chrome.runtime.sendMessage(
     { type: MESSAGE.AI_EVALUATE, data: { profiles: urls, jd, apiKey, model } },
     (response?: { status?: string; error?: string }) => {
       if (!response || response.status !== 'started') {
-        aiEvalBtn.disabled = false;
+        setRunning(false);
         setEvalStatus('❌ Failed to start: ' + (response?.error || 'unknown'));
       }
     },
@@ -603,7 +671,7 @@ async function startScoring(): Promise<void> {
     return;
   }
 
-  scoreBtn.disabled = true;
+  setRunning(true);
   setEvalStatus('⭐ Scoring ' + urls.length + ' candidate(s)…');
   chrome.runtime.sendMessage(
     {
@@ -612,7 +680,7 @@ async function startScoring(): Promise<void> {
     },
     (response?: { status?: string; error?: string }) => {
       if (!response || response.status !== 'started') {
-        scoreBtn.disabled = false;
+        setRunning(false);
         setEvalStatus('❌ Failed to start scoring: ' + (response?.error || 'unknown'));
       }
     },
@@ -627,14 +695,16 @@ scoreBtn.addEventListener('click', () => void startScoring());
 chrome.runtime.onMessage.addListener(
   (msg: { type?: string; currentIndex?: number; total?: number; failedCount?: number }) => {
     if (msg.type === MESSAGE.AI_EVAL_PROGRESS) {
+      setRunning(true); // a run is live (covers a dashboard opened mid-run)
       setEvalStatus('✦ Evaluating ' + String(msg.currentIndex) + '/' + String(msg.total) + '…');
     } else if (msg.type === MESSAGE.AI_EVAL_COMPLETE) {
-      aiEvalBtn.disabled = false;
+      setRunning(false);
       setEvalStatus('✦ AI evaluation complete.');
     } else if (msg.type === MESSAGE.SCORING_PROGRESS) {
+      setRunning(true);
       setEvalStatus('⭐ Scoring ' + String(msg.currentIndex) + '/' + String(msg.total) + '…');
     } else if (msg.type === MESSAGE.SCORING_COMPLETE) {
-      scoreBtn.disabled = false;
+      setRunning(false);
       setEvalStatus('⭐ Scoring complete.');
     }
   },

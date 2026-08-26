@@ -1,6 +1,6 @@
 import { MESSAGE } from '../shared/constants.js';
 import { startScoring, stopScoring, getScoringStatus, clearCache, restoreCheckpoint, } from './scoringEngine.js';
-import { startAiEval } from './aiEvalEngine.js';
+import { startAiEval, stopAiEval } from './aiEvalEngine.js';
 import { startSearch, handlePageExtracted } from './searchSession.js';
 void restoreCheckpoint();
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -28,6 +28,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             return false;
         case MESSAGE.STOP_SCORING:
             stopScoring();
+            sendResponse({ status: 'stopped' });
+            return false;
+        case MESSAGE.STOP_AI_EVAL:
+            stopAiEval();
             sendResponse({ status: 'stopped' });
             return false;
         case MESSAGE.GET_SCORING_STATUS:
