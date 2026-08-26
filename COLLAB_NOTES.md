@@ -32,7 +32,7 @@ your status changes.
 > **patch** (x.y.Z) for fixes/tweaks, **minor** (x.Y.0) for a new user-facing
 > feature. `npm version <v> --no-git-tag-version` updates package.json + lock;
 > hand-edit `src/manifest.json` to match, then `npm run build` so `dist/manifest.json`
-> updates too. Current: **1.22.0**.
+> updates too. Current: **1.22.1**.
 
 > 🧱 **Every feature must be modular, efficient, and non-regressing** (owner's
 > standing rule, 2026-08-24). New work goes in its OWN file in the right layer
@@ -45,6 +45,7 @@ your status changes.
 
 ## Status log
 
+| 2026-08-24 | claude/multi-account-project-rcmfpz | FIX: CLEAR ALL WIPED FOLDER/SHORTLIST CDDS (v1.22.1): clearAll now protects candidates in any folder or the shortlist — only removes UNsaved results. Button relabelled "🗑 Clear results" + tooltip; confirm says how many saved are kept; no-op msg if all are saved. removeCandidates unchanged (Remove selected still removes exactly what's picked). | done |
 | 2026-08-24 | claude/multi-account-project-rcmfpz | SHIFT-SELECT + COST REVIEW FIXES (v1.22.0): dashboard checkbox now click-handled — Shift-click selects a range (anchor = last-clicked url, current view order), plain/Ctrl toggles one; summary shows the tip. Review fixes: aiCost price() allows 0 (free cache rate); modelCostUsd takes a named ModelPrice object (chatPrice/reasonerPrice helpers) so prices can't be swapped positionally. (Historical usage still all-miss — no data to recover cache split.) | done |
 | 2026-08-24 | claude/multi-account-project-rcmfpz | CACHE-HIT PRICING (v1.21.0): aiCost ModelUsage gains cachedInputTokens; AiPrices gains chat/reasonerCached (defaults 0.07/0.14); modelCostUsd bills cache-hit input cheaper (miss=input−cached). deepseek.ts reads prompt_cache_hit_tokens; engine passes cachedTokens to addUsage. Cost tab adds "of which cached" column + cache-hit price fields. Old stored usage (no cached field) treated as all-miss. | done |
 | 2026-08-24 | claude/multi-account-project-rcmfpz | SCORING: IGNORE EDU/DEGREE/LANG (v1.20.0): keywordExtraction IGNORED_JD_TERMS (degrees, education, language names/proficiency) dropped from JD-derived keywords + phrases (isJdNoise) — manual/Boolean terms still respected (+3 tests). AI prompt updated to weight the role, ignore education/degrees/languages, and score cross-function candidates low. | done |
