@@ -6,7 +6,7 @@ import {
   clearCache,
   restoreCheckpoint,
 } from './scoringEngine.js';
-import { startAiEval } from './aiEvalEngine.js';
+import { startAiEval, stopAiEval } from './aiEvalEngine.js';
 import { startSearch, handlePageExtracted } from './searchSession.js';
 import type { RuntimeMessage, ScoringRequest, AiEvalRequest } from '../shared/types.js';
 
@@ -39,6 +39,11 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, sender, sendRespo
 
     case MESSAGE.STOP_SCORING:
       stopScoring();
+      sendResponse({ status: 'stopped' });
+      return false;
+
+    case MESSAGE.STOP_AI_EVAL:
+      stopAiEval();
       sendResponse({ status: 'stopped' });
       return false;
 

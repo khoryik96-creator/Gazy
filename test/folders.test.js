@@ -9,6 +9,7 @@ import {
   deleteFolder,
   toggleMembership,
   addMembership,
+  removeUrlsFromFolders,
   foldersForUrl,
   folderCount,
 } from '../dist/shared/folders.js';
@@ -82,6 +83,17 @@ test('renameFolder keeps position and members; blocks collision', () => {
   assert.equal(s.members.One, undefined);
   const blocked = renameFolder(s, 'Two', 'Uno'); // collision → no-op
   assert.equal(blocked, s);
+});
+
+test('removeUrlsFromFolders strips urls from every folder, keeps folders', () => {
+  let s = createFolder(createFolder(emptyFolderStore(), 'One'), 'Two');
+  s = toggleMembership(s, 'One', A);
+  s = toggleMembership(s, 'One', B);
+  s = toggleMembership(s, 'Two', A);
+  s = removeUrlsFromFolders(s, new Set([A]));
+  assert.deepEqual(s.order, ['One', 'Two']);
+  assert.deepEqual(s.members.One, [B]);
+  assert.deepEqual(s.members.Two, []);
 });
 
 test('deleteFolder drops the folder only', () => {

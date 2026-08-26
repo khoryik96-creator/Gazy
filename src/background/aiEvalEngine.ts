@@ -4,6 +4,7 @@ import { evaluateProfile } from './deepseek.js';
 import type { AiEvalEntry, AiEvalMap, AiEvalRequest } from '../shared/types.js';
 
 let running = false;
+let stopRequested = false;
 
 /**
  * Kicks off an AI-evaluation run and returns immediately; the run itself
@@ -17,7 +18,13 @@ let running = false;
 export function startAiEval(req: AiEvalRequest): void {
   if (running) return;
   running = true;
+  stopRequested = false;
   void runAiEvalLoop(req);
+}
+
+/** Requests the in-flight AI-evaluation run stop after the current profile. */
+export function stopAiEval(): void {
+  stopRequested = true;
 }
 
 /**
@@ -39,6 +46,7 @@ async function runAiEvalLoop(req: AiEvalRequest): Promise<void> {
 
   try {
     for (const url of req.profiles) {
+      if (stopRequested) break; // user hit Stop — leave what's done, bail out
       index++;
       let entry: AiEvalEntry;
       try {

@@ -102,6 +102,14 @@ export function addMembership(store: FolderStore, name: string, url: string): Fo
   return next;
 }
 
+/** Removes the given candidate URLs from every folder. Folders themselves stay. */
+export function removeUrlsFromFolders(store: FolderStore, urls: Set<string>): FolderStore {
+  const next = clone(store);
+  for (const name of next.order)
+    next.members[name] = next.members[name].filter((u) => !urls.has(u));
+  return next;
+}
+
 /** The folders a given candidate belongs to, in display order. */
 export function foldersForUrl(store: FolderStore, url: string): string[] {
   return store.order.filter((name) => store.members[name]?.includes(url));

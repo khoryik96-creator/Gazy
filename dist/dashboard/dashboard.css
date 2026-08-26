@@ -312,6 +312,20 @@ h1 {
   font-size: 12.5px;
   padding: 7px 10px;
 }
+.tbtn.danger {
+  background: var(--bad);
+  border-color: var(--bad);
+  color: #ffffff;
+}
+.tbtn.danger-ghost {
+  background: var(--tab-bg);
+  color: var(--bad);
+  border-color: var(--tab-border);
+}
+.tbtn.danger-ghost:hover:not(:disabled) {
+  border-color: var(--bad);
+  filter: none;
+}
 .eval-status {
   font-size: 13px;
   color: var(--muted);
