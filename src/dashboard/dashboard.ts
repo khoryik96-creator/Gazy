@@ -54,6 +54,15 @@ interface Row {
   folders: string[];
 }
 
+// Everything needed to put a removed set of candidates back exactly as it was.
+interface RemovedSnapshot {
+  urls: string[];
+  scores: ScoresMap;
+  aiEvals: AiEvalMap;
+  shortlisted: string[];
+  folders: Record<string, string[]>; // folder name → removed urls that were in it
+}
+
 const el = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 const tbody = el<HTMLTableSectionElement>('tbody');
 const emptyEl = el<HTMLDivElement>('empty');
@@ -64,6 +73,7 @@ const aiEvalBtn = el<HTMLButtonElement>('aiEvalBtn');
 const stopBtn = el<HTMLButtonElement>('stopBtn');
 const exportBtn = el<HTMLButtonElement>('exportBtn');
 const clearAllBtn = el<HTMLButtonElement>('clearAllBtn');
+const undoBtn = el<HTMLButtonElement>('undoBtn');
 const evalStatusEl = el<HTMLSpanElement>('evalStatus');
 const folderBar = el<HTMLDivElement>('folderBar');
 const renameFolderBtn = el<HTMLButtonElement>('renameFolderBtn');
@@ -86,6 +96,8 @@ let folders: FolderStore = emptyFolderStore();
 let aiUsage: AiUsage = emptyAiUsage();
 let aiPrices: AiPrices = normalizePrices(undefined);
 let usdToMyr = DEFAULT_USD_TO_MYR;
+// Snapshot of the most recent removal, for one-level Undo (persisted).
+let lastRemoved: RemovedSnapshot | null = null;
 // Ephemeral row selection (not persisted) for bulk shortlist / folder actions.
 let selected = new Set<string>();
 // Anchor for Shift-click range selection: the URL of the last row clicked.
@@ -105,6 +117,7 @@ async function load(): Promise<void> {
     'aiUsage',
     'aiPrices',
     'usdToMyr',
+    'lastRemoved',
     'uiTheme',
   ])) as unknown as {
     profiles?: string[];
@@ -115,6 +128,7 @@ async function load(): Promise<void> {
     aiUsage?: unknown;
     aiPrices?: unknown;
     usdToMyr?: number;
+    lastRemoved?: RemovedSnapshot;
     uiTheme?: string;
   };
   profiles = data.profiles || [];
@@ -122,6 +136,7 @@ async function load(): Promise<void> {
   aiEvals = data.aiEvals || {};
   shortlist = new Set(data.shortlist || []);
   folders = normalizeFolderStore(data.folders);
+  lastRemoved = data.lastRemoved && Array.isArray(data.lastRemoved.urls) ? data.lastRemoved : null;
   aiUsage = normalizeAiUsage(data.aiUsage);
   aiPrices = normalizePrices(data.aiPrices);
   usdToMyr =
@@ -324,6 +339,7 @@ function render(): void {
   renderFolderBar();
   renameFolderBtn.style.display = view.kind === 'folder' ? '' : 'none';
   deleteFolderBtn.style.display = view.kind === 'folder' ? '' : 'none';
+  undoBtn.style.display = lastRemoved ? '' : 'none';
   syncSelectionUI(rows);
   updateHeaderArrows();
 }
@@ -553,8 +569,8 @@ function clearSelection(): void {
 // ---- Remove candidates: selected, or all ----
 
 // Wipe the given candidates from every store (profiles, scores, AI evals,
-// shortlist, folder membership) in one storage write; storage.onChanged then
-// reloads and re-renders.
+// shortlist, folder membership) in one storage write, stashing a snapshot so the
+// removal can be undone. storage.onChanged then reloads and re-renders.
 async function removeCandidates(urls: Set<string>): Promise<void> {
   const keep = profiles.filter((u) => !urls.has(u));
   const nextScores: ScoresMap = {};
@@ -563,6 +579,25 @@ async function removeCandidates(urls: Set<string>): Promise<void> {
   for (const u of keep) if (aiEvals[u]) nextAi[u] = aiEvals[u];
   const nextShortlist = [...shortlist].filter((u) => !urls.has(u));
   const nextFolders = removeUrlsFromFolders(folders, urls);
+
+  // Snapshot exactly what's being removed so Undo can restore it.
+  const removedList = profiles.filter((u) => urls.has(u));
+  const snap: RemovedSnapshot = {
+    urls: removedList,
+    scores: {},
+    aiEvals: {},
+    shortlisted: removedList.filter((u) => shortlist.has(u)),
+    folders: {},
+  };
+  for (const u of removedList) {
+    if (scores[u]) snap.scores[u] = scores[u];
+    if (aiEvals[u]) snap.aiEvals[u] = aiEvals[u];
+  }
+  for (const name of folders.order) {
+    const inFolder = removedList.filter((u) => folders.members[name].includes(u));
+    if (inFolder.length) snap.folders[name] = inFolder;
+  }
+
   selected = new Set();
   await chrome.storage.local.set({
     profiles: keep,
@@ -570,7 +605,39 @@ async function removeCandidates(urls: Set<string>): Promise<void> {
     aiEvals: nextAi,
     shortlist: nextShortlist,
     folders: nextFolders,
+    lastRemoved: snap,
   });
+}
+
+// Restore the most recent removal. Adds the candidates back (appended), with
+// their scores / AI evals / shortlist stars and any folder memberships whose
+// folder still exists.
+async function undoRemoval(): Promise<void> {
+  if (!lastRemoved) return;
+  const snap = lastRemoved;
+
+  const have = new Set(profiles);
+  const restoredProfiles = [...profiles, ...snap.urls.filter((u) => !have.has(u))];
+  const restoredScores: ScoresMap = { ...scores, ...snap.scores };
+  const restoredAi: AiEvalMap = { ...aiEvals, ...snap.aiEvals };
+  const restoredShortlist = new Set(shortlist);
+  for (const u of snap.shortlisted) restoredShortlist.add(u);
+  let restoredFolders = folders;
+  for (const name of Object.keys(snap.folders)) {
+    if (!restoredFolders.order.includes(name)) continue; // folder since deleted
+    for (const u of snap.folders[name]) restoredFolders = addMembership(restoredFolders, name, u);
+  }
+
+  lastRemoved = null;
+  await chrome.storage.local.set({
+    profiles: restoredProfiles,
+    profileScores: restoredScores,
+    aiEvals: restoredAi,
+    shortlist: [...restoredShortlist],
+    folders: restoredFolders,
+    lastRemoved: null,
+  });
+  setEvalStatus('↩ Restored ' + snap.urls.length + ' candidate(s).');
 }
 
 async function removeSelected(): Promise<void> {
@@ -628,6 +695,7 @@ renameFolderBtn.addEventListener('click', () => void renameActiveFolder());
 deleteFolderBtn.addEventListener('click', () => void deleteActiveFolder());
 exportBtn.addEventListener('click', exportCsv);
 clearAllBtn.addEventListener('click', () => void clearAll());
+undoBtn.addEventListener('click', () => void undoRemoval());
 stopBtn.addEventListener('click', stopRuns);
 selectAllEl.addEventListener('change', toggleSelectAll);
 bulkShortlistBtn.addEventListener('click', () => void bulkSetShortlist(true));
@@ -820,6 +888,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
     changes.aiUsage ||
     changes.aiPrices ||
     changes.usdToMyr ||
+    changes.lastRemoved ||
     changes.uiTheme
   ) {
     void load().then(render);
