@@ -16,6 +16,14 @@ import {
 } from '../shared/folders.js';
 import { openFolderMenu, openFolderPickMenu, closeFolderMenu } from './folderMenu.js';
 import { initSidebar } from './sidebar.js';
+import { renderCostPanel } from './costPanel.js';
+import {
+  emptyAiUsage,
+  normalizeAiUsage,
+  normalizePrices,
+  DEFAULT_USD_TO_MYR,
+} from '../shared/aiCost.js';
+import type { AiUsage, AiPrices } from '../shared/aiCost.js';
 import { getScoringKeywords } from '../shared/keywordExtraction.js';
 import { compileBooleanRule } from '../shared/booleanExpression.js';
 import { largeRunWarning } from '../shared/runGuard.js';
@@ -30,7 +38,8 @@ import type { ScoresMap, AiEvalMap, AiModel } from '../shared/types.js';
 // other dashboard tabs stay in sync.
 
 type SortKey = 'name' | 'kw' | 'ai' | 'location';
-type View = { kind: 'all' } | { kind: 'shortlist' } | { kind: 'folder'; name: string };
+type View =
+  { kind: 'all' } | { kind: 'shortlist' } | { kind: 'cost' } | { kind: 'folder'; name: string };
 
 interface Row {
   url: string;
@@ -59,6 +68,7 @@ const evalStatusEl = el<HTMLSpanElement>('evalStatus');
 const folderBar = el<HTMLDivElement>('folderBar');
 const renameFolderBtn = el<HTMLButtonElement>('renameFolderBtn');
 const deleteFolderBtn = el<HTMLButtonElement>('deleteFolderBtn');
+const costPanel = el<HTMLDivElement>('costPanel');
 const selectAllEl = el<HTMLInputElement>('selectAll');
 const bulkBar = el<HTMLDivElement>('bulkBar');
 const bulkCountEl = el<HTMLSpanElement>('bulkCount');
@@ -73,6 +83,9 @@ let scores: ScoresMap = {};
 let aiEvals: AiEvalMap = {};
 let shortlist = new Set<string>();
 let folders: FolderStore = emptyFolderStore();
+let aiUsage: AiUsage = emptyAiUsage();
+let aiPrices: AiPrices = normalizePrices(undefined);
+let usdToMyr = DEFAULT_USD_TO_MYR;
 // Ephemeral row selection (not persisted) for bulk shortlist / folder actions.
 let selected = new Set<string>();
 
@@ -87,6 +100,9 @@ async function load(): Promise<void> {
     'aiEvals',
     'shortlist',
     'folders',
+    'aiUsage',
+    'aiPrices',
+    'usdToMyr',
     'uiTheme',
   ])) as unknown as {
     profiles?: string[];
@@ -94,6 +110,9 @@ async function load(): Promise<void> {
     aiEvals?: AiEvalMap;
     shortlist?: string[];
     folders?: unknown;
+    aiUsage?: unknown;
+    aiPrices?: unknown;
+    usdToMyr?: number;
     uiTheme?: string;
   };
   profiles = data.profiles || [];
@@ -101,6 +120,10 @@ async function load(): Promise<void> {
   aiEvals = data.aiEvals || {};
   shortlist = new Set(data.shortlist || []);
   folders = normalizeFolderStore(data.folders);
+  aiUsage = normalizeAiUsage(data.aiUsage);
+  aiPrices = normalizePrices(data.aiPrices);
+  usdToMyr =
+    typeof data.usdToMyr === 'number' && data.usdToMyr > 0 ? data.usdToMyr : DEFAULT_USD_TO_MYR;
   // A folder view whose folder was deleted elsewhere falls back to All.
   if (view.kind === 'folder' && !folders.order.includes(view.name)) view = { kind: 'all' };
   document.body.dataset.theme = normalizeUiTheme(data.uiTheme);
@@ -109,7 +132,8 @@ async function load(): Promise<void> {
 function inView(url: string): boolean {
   if (view.kind === 'all') return true;
   if (view.kind === 'shortlist') return shortlist.has(url);
-  return folders.members[view.name]?.includes(url) ?? false;
+  if (view.kind === 'folder') return folders.members[view.name]?.includes(url) ?? false;
+  return false; // cost view isn't a candidate filter
 }
 
 function buildRows(): Row[] {
@@ -172,6 +196,38 @@ function sortRows(rows: Row[]): Row[] {
 }
 
 function render(): void {
+  // The Cost tab replaces the candidate workspace with the spend breakdown.
+  const isCost = view.kind === 'cost';
+  el<HTMLButtonElement>('tabAll').classList.toggle('active', view.kind === 'all');
+  el<HTMLButtonElement>('tabShort').classList.toggle('active', view.kind === 'shortlist');
+  el<HTMLButtonElement>('tabCost').classList.toggle('active', isCost);
+  const toolbar = document.querySelector<HTMLElement>('.toolbar');
+  const tableScroll = tableEl.closest<HTMLElement>('.table-scroll');
+
+  if (isCost) {
+    costPanel.style.display = '';
+    if (toolbar) toolbar.style.display = 'none';
+    if (tableScroll) tableScroll.style.display = 'none';
+    folderBar.style.display = 'none';
+    bulkBar.style.display = 'none';
+    summaryEl.style.display = 'none';
+    emptyEl.style.display = 'none';
+    renderCostPanel(costPanel, {
+      usage: aiUsage,
+      prices: aiPrices,
+      usdToMyr,
+      onRate: (n) => void setUsdToMyr(n),
+      onPrices: (p) => void setAiPrices(p),
+      onReset: () => void resetCost(),
+    });
+    return;
+  }
+  costPanel.style.display = 'none';
+  if (toolbar) toolbar.style.display = '';
+  if (tableScroll) tableScroll.style.display = '';
+  folderBar.style.display = '';
+  summaryEl.style.display = '';
+
   let rows = buildRows().filter((r) => inView(r.url));
   rows = sortRows(rows);
 
@@ -247,8 +303,6 @@ function render(): void {
         : total + ' candidate(s) · ' + shortCount + ' shortlisted';
 
   renderFolderBar();
-  el<HTMLButtonElement>('tabAll').classList.toggle('active', view.kind === 'all');
-  el<HTMLButtonElement>('tabShort').classList.toggle('active', view.kind === 'shortlist');
   renameFolderBtn.style.display = view.kind === 'folder' ? '' : 'none';
   deleteFolderBtn.style.display = view.kind === 'folder' ? '' : 'none';
   syncSelectionUI(rows);
@@ -524,8 +578,27 @@ async function clearAll(): Promise<void> {
   setEvalStatus('🗑 Cleared all ' + n + ' candidate(s).');
 }
 
+// ---- Cost tab: persist the editable FX rate / prices, reset counters ----
+async function setUsdToMyr(n: number): Promise<void> {
+  usdToMyr = n;
+  await chrome.storage.local.set({ usdToMyr: n });
+  render();
+}
+async function setAiPrices(p: AiPrices): Promise<void> {
+  aiPrices = p;
+  await chrome.storage.local.set({ aiPrices: p });
+  render();
+}
+async function resetCost(): Promise<void> {
+  if (!confirm('Reset the tracked AI usage counters to zero?')) return;
+  aiUsage = emptyAiUsage();
+  await chrome.storage.local.set({ aiUsage });
+  render();
+}
+
 el<HTMLButtonElement>('tabAll').addEventListener('click', () => setView({ kind: 'all' }));
 el<HTMLButtonElement>('tabShort').addEventListener('click', () => setView({ kind: 'shortlist' }));
+el<HTMLButtonElement>('tabCost').addEventListener('click', () => setView({ kind: 'cost' }));
 renameFolderBtn.addEventListener('click', () => void renameActiveFolder());
 deleteFolderBtn.addEventListener('click', () => void deleteActiveFolder());
 exportBtn.addEventListener('click', exportCsv);
@@ -719,6 +792,9 @@ chrome.storage.onChanged.addListener((changes, area) => {
     changes.aiEvals ||
     changes.shortlist ||
     changes.folders ||
+    changes.aiUsage ||
+    changes.aiPrices ||
+    changes.usdToMyr ||
     changes.uiTheme
   ) {
     void load().then(render);

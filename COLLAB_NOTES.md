@@ -32,7 +32,7 @@ your status changes.
 > **patch** (x.y.Z) for fixes/tweaks, **minor** (x.Y.0) for a new user-facing
 > feature. `npm version <v> --no-git-tag-version` updates package.json + lock;
 > hand-edit `src/manifest.json` to match, then `npm run build` so `dist/manifest.json`
-> updates too. Current: **1.18.0**.
+> updates too. Current: **1.19.0**.
 
 > 🧱 **Every feature must be modular, efficient, and non-regressing** (owner's
 > standing rule, 2026-08-24). New work goes in its OWN file in the right layer
@@ -45,6 +45,7 @@ your status changes.
 
 ## Status log
 
+| 2026-08-24 | claude/multi-account-project-rcmfpz | COST TAB (v1.19.0): tracks real DeepSeek token usage (deepseek.ts returns usage; aiEvalEngine accumulates aiUsage). New shared/aiCost.ts (AiUsage/AiPrices, addUsage/totalCostUsd/normalize, DEFAULT_PRICES+USD→MYR 4.7, +4 tests) + dashboard/costPanel.ts. New 💵 Cost dashboard tab: USD + MYR totals, per-model calls/tokens/USD, editable FX rate + prices (stored aiPrices/usdToMyr), reset counters. View type gains 'cost'. | done |
 | 2026-08-24 | claude/multi-account-project-rcmfpz | LOCATION COUNTRY DROPDOWN (v1.18.0): new shared/countries.ts (COUNTRIES list + canonicalCountry with aliases USA/UK/UAE…, +4 tests). Location field in popup + dashboard is now a <datalist> combobox — typing "malaysia" suggests/snaps to "Malaysia" on change; free text (city/region) still allowed. | done |
 | 2026-08-24 | claude/multi-account-project-rcmfpz | STOP + REMOVE (v1.17.0): dashboard ⏹ Stop button (shown while a run is live) sends STOP_SCORING+STOP_AI_EVAL — new stopAiEval() + stopRequested flag in aiEvalEngine, STOP_AI_EVAL msg. "🗑 Remove selected" (bulk bar) + "🗑 Clear all" (toolbar, confirm) wipe candidates from profiles/scores/aiEvals/shortlist/folders in one storage write; new pure folders.removeUrlsFromFolders (+test). setRunning() toggles Stop + disables Score/AI, driven by progress/complete msgs. | done |
 | 2026-08-24 | claude/multi-account-project-rcmfpz | FILE-IMPORT REVIEW FIXES (v1.16.1): PDF gate now BT/Tj/TJ (TJ-only streams no longer dropped); TJ kerning gaps → spaces (words stop merging); skip <<..>> dicts (ActualText no leak); FlateDecode scanned over whole object + /Length bounds stream (ignores indirect); stream regex whole-word (not 'endstream'); readPdfString CR/CRLF continuation; docx drops delText/instrText, tab regex only bare <w:tab/>; sidebar dragleave relatedTarget (no flicker). +tests. | done |
