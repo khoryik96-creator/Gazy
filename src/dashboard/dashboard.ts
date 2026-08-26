@@ -583,18 +583,24 @@ async function removeSelected(): Promise<void> {
 
 async function clearAll(): Promise<void> {
   if (profiles.length === 0) return;
-  const n = profiles.length;
-  if (
-    !confirm(
-      'Remove ALL ' +
-        n +
-        ' candidates? This also clears their scores, AI evals and shortlist. Folder names are kept but emptied.',
-    )
-  ) {
+
+  // Protect anything the user curated — candidates in a folder or on the
+  // shortlist are kept. "Clear all" clears the working results, not saved picks.
+  const saved = new Set<string>(shortlist);
+  for (const name of folders.order) for (const u of folders.members[name]) saved.add(u);
+  const toRemove = new Set(profiles.filter((u) => !saved.has(u)));
+
+  if (toRemove.size === 0) {
+    setEvalStatus('Nothing to clear — every candidate is in a folder or shortlisted.');
     return;
   }
-  await removeCandidates(new Set(profiles));
-  setEvalStatus('🗑 Cleared all ' + n + ' candidate(s).');
+
+  const keptNote =
+    saved.size > 0 ? ' ' + saved.size + ' saved (folder/shortlist) candidate(s) are kept.' : '';
+  if (!confirm('Remove ' + toRemove.size + ' unsaved candidate(s)?' + keptNote)) return;
+
+  await removeCandidates(toRemove);
+  setEvalStatus('🗑 Cleared ' + toRemove.size + ' candidate(s).' + keptNote);
 }
 
 // ---- Cost tab: persist the editable FX rate / prices, reset counters ----
