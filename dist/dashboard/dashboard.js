@@ -31,6 +31,8 @@ const costPanel = el('costPanel');
 const selectAllEl = el('selectAll');
 const bulkBar = el('bulkBar');
 const bulkCountEl = el('bulkCount');
+const bulkScoreBtn = el('bulkScore');
+const bulkEvalBtn = el('bulkEval');
 const bulkShortlistBtn = el('bulkShortlist');
 const bulkUnshortlistBtn = el('bulkUnshortlist');
 const bulkFolderBtn = el('bulkFolder');
@@ -732,6 +734,8 @@ clearAllBtn.addEventListener('click', () => void clearAll());
 undoBtn.addEventListener('click', () => void undoRemoval());
 stopBtn.addEventListener('click', stopRuns);
 selectAllEl.addEventListener('change', toggleSelectAll);
+bulkScoreBtn.addEventListener('click', () => void startScoring([...selected]));
+bulkEvalBtn.addEventListener('click', () => void startEval([...selected]));
 bulkShortlistBtn.addEventListener('click', () => void bulkSetShortlist(true));
 bulkUnshortlistBtn.addEventListener('click', () => void bulkSetShortlist(false));
 bulkFolderBtn.addEventListener('click', bulkAddToFolder);
@@ -743,6 +747,8 @@ function setRunning(on) {
     stopBtn.style.display = on ? '' : 'none';
     scoreBtn.disabled = on;
     aiEvalBtn.disabled = on;
+    bulkScoreBtn.disabled = on;
+    bulkEvalBtn.disabled = on;
 }
 function stopRuns() {
     void chrome.runtime.sendMessage({ type: MESSAGE.STOP_SCORING }).catch(() => { });
@@ -764,8 +770,10 @@ function viewUrls() {
 // and job-description form data the popup persists to storage, then hands the
 // work to the background engine (which persists results to storage.local, so
 // they flow back here live via the storage.onChanged listener below).
-async function startEval() {
-    const urls = viewUrls();
+// Evaluate `targets` if given (e.g. the current selection), else the whole view.
+// Lets an interrupted AI scan be resumed on just the candidates that still need it.
+async function startEval(targets) {
+    const urls = targets ?? viewUrls();
     if (urls.length === 0) {
         setEvalStatus('No candidates to evaluate.');
         return;
@@ -805,8 +813,8 @@ aiEvalBtn.addEventListener('click', () => void startEval());
 // derives keywords from the same stored job-description form data and hands the
 // run to the background scoring engine, which persists profileScores to
 // storage.local — so results flow back here live via storage.onChanged.
-async function startScoring() {
-    const urls = viewUrls();
+async function startScoring(targets) {
+    const urls = targets ?? viewUrls();
     if (urls.length === 0) {
         setEvalStatus('No candidates to score.');
         return;
