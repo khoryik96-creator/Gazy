@@ -3,13 +3,12 @@ import { setStatus } from './status.js';
 import { scoreEntry } from './scores.js';
 import { isShortlisted } from './shortlist.js';
 import { toCsv } from '../shared/csv.js';
+import { buildXlsx } from '../shared/xlsx.js';
 
-export function exportCSV(): void {
-  if (!state.extractedProfiles.length) {
-    setStatus('No profiles to export.', 'error');
-    return;
-  }
-
+// Builds the export grid. `blank` is what a missing Score/AI cell becomes:
+// '—' reads clearly in CSV, '' leaves a real blank so Excel sorts the numeric
+// Score / AI Score columns numerically. Present scores stay numbers either way.
+function buildExportRows(blank: string): (string | number)[][] {
   const scores = state.profileScores;
   const aiEvals = state.aiEvals;
   // Only include the AI columns when at least one profile was AI-evaluated, so
@@ -23,7 +22,7 @@ export function exportCSV(): void {
   state.extractedProfiles.forEach((url) => {
     const name = url.split('/in/')[1]?.split('/')[0] || 'Unknown';
     const entry = scoreEntry(scores, url);
-    let score: string | number = '—';
+    let score: string | number = blank;
     let status = 'not scored';
     if (entry) {
       if (entry.success === false) status = 'scrape failed';
@@ -45,7 +44,7 @@ export function exportCSV(): void {
     if (hasAi) {
       const ai = aiEvals[url];
       if (!ai) {
-        row.push('—', '', '', '');
+        row.push(blank, '', '', '');
       } else if (ai.error) {
         row.push('failed', ai.error, '', '');
       } else {
@@ -56,14 +55,44 @@ export function exportCSV(): void {
     rows.push(row);
   });
 
-  const csv = toCsv(rows);
-  const blob = new Blob([csv], { type: 'text/csv' });
+  return rows;
+}
+
+function download(blob: Blob, filename: string): void {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'profiles_' + Date.now() + '.csv';
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+export function exportCSV(): void {
+  if (!state.extractedProfiles.length) {
+    setStatus('No profiles to export.', 'error');
+    return;
+  }
+  download(
+    new Blob([toCsv(buildExportRows('—'))], { type: 'text/csv' }),
+    'profiles_' + Date.now() + '.csv',
+  );
   setStatus('📊 CSV exported!', 'success');
+}
+
+// Real .xlsx with the header row's filter/sort arrows, so Score and AI Score can
+// be ordered highest/lowest in Excel. Numeric cells sort as numbers.
+export function exportXLSX(): void {
+  if (!state.extractedProfiles.length) {
+    setStatus('No profiles to export.', 'error');
+    return;
+  }
+  const bytes = buildXlsx(buildExportRows(''), 'Candidates');
+  download(
+    new Blob([bytes], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    }),
+    'profiles_' + Date.now() + '.xlsx',
+  );
+  setStatus('📊 Excel exported!', 'success');
 }
 
 export async function copyAllURLs(): Promise<void> {

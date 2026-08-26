@@ -32,7 +32,7 @@ your status changes.
 > **patch** (x.y.Z) for fixes/tweaks, **minor** (x.Y.0) for a new user-facing
 > feature. `npm version <v> --no-git-tag-version` updates package.json + lock;
 > hand-edit `src/manifest.json` to match, then `npm run build` so `dist/manifest.json`
-> updates too. Current: **1.23.0**.
+> updates too. Current: **1.24.0**.
 
 > 🧱 **Every feature must be modular, efficient, and non-regressing** (owner's
 > standing rule, 2026-08-24). New work goes in its OWN file in the right layer
@@ -66,21 +66,39 @@ your status changes.
 | 2026-08-24 | claude/multi-account-project-rcmfpz | DASHBOARD AI EVAL (v1.9.0): AI-Evaluate button on full-tab dashboard — reuses background aiEvalEngine, reads stored aiKey/aiModel/formData, evaluates all/shortlist tab, live status + storage.onChanged render | done |
 | 2026-08-24 | claude/multi-account-project-rcmfpz | THEMES: popup.css+dashboard.css tokenized, shared/themes(+test), popup/themeManager, render classes, settings picker; retired dark toggle | done (unmerged) |
 
-| Date       | Branch                                      | Scope                                                                                                                                | Status          |
-| ---------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------------- |
-| 2026-08-03 | claude/multi-account-project-rcmfpz         | popup/templates.js, background/scoring.js                                                                                            | merged (PR #2)  |
-| 2026-08-14 | claude/multi-account-project-rcmfpz         | scoring, scoringEngine, popup render/csv/scoringUI, content/extractor, pageExtractor, shared/booleanExpression, test/                | merged (PR #3)  |
-| 2026-08-20 | claude/multi-account-project-rcmfpz         | shared/constants, shared/timing (new), background/scoringEngine, background/profileFetcher, test/                                    | merged (PR #4)  |
-| 2026-08-20 | claude/multi-account-project-rcmfpz         | ENTIRE REPO — TypeScript migration (all src/*.ts, tsconfig, build)                                                                   | merged (PR #5)  |
-| 2026-08-21 | claude/chrome-extension-architecture-cj7pul | tooling: ESLint + typescript-eslint, CI workflow, TS pin 6.0.x, lint-driven fixes across src/                                        | merged (PR #6)  |
-| 2026-08-21 | claude/chrome-extension-architecture-cj7pul | tooling round 2: Prettier, Husky pre-push, Playwright e2e (e2e/), icons (src/icons + gen script), Dependabot, build.mjs copy fix     | merged (PR #6)  |
-| 2026-08-21 | claude/chrome-extension-architecture-cj7pul | popup/scoringUI (Boolean pre-validation), test/booleanExpression                                                                     | merged (PR #11) |
-| 2026-08-21 | claude/chrome-extension-architecture-cj7pul | pageExtractor (login detection), committed prebuilt dist/, .gitignore/.gitattributes, README install                                 | merged (PR #11) |
-| 2026-08-21 | claude/chrome-extension-architecture-cj7pul | content/autoscroll (dup-extract fix), shared/csv (new, injection-safe) + csvExport, scoring/scoringEngine (compile rule once), test/ | done (unmerged) |
-| 2026-08-21 | claude/multi-account-project-rcmfpz         | background/scoring (coverage-based rewrite), test/scoring                                                                            | done (unmerged) |
-| 2026-08-21 | claude/multi-account-project-rcmfpz         | AI eval (DeepSeek): shared/aiEvaluation, background/deepseek+aiEvalEngine, popup settings/aiEvalUI, manifest host perm, test/        | done (unmerged) |
-| 2026-08-24 | claude/multi-account-project-rcmfpz         | shortlist (popup/shortlist, render/csv/dom/html), COLLAB rule                                                                        | merged (PR #20) |
-| 2026-08-24 | claude/multi-account-project-rcmfpz         | dashboard (src/dashboard/*, shared/scoreView, popup button, build copy)                                                              | done (unmerged) |
+| Date       | Branch                                      | Scope                                                                                                                                                                                   | Status          |
+| ---------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| 2026-08-03 | claude/multi-account-project-rcmfpz         | popup/templates.js, background/scoring.js                                                                                                                                               | merged (PR #2)  |
+| 2026-08-14 | claude/multi-account-project-rcmfpz         | scoring, scoringEngine, popup render/csv/scoringUI, content/extractor, pageExtractor, shared/booleanExpression, test/                                                                   | merged (PR #3)  |
+| 2026-08-20 | claude/multi-account-project-rcmfpz         | shared/constants, shared/timing (new), background/scoringEngine, background/profileFetcher, test/                                                                                       | merged (PR #4)  |
+| 2026-08-20 | claude/multi-account-project-rcmfpz         | ENTIRE REPO — TypeScript migration (all src/*.ts, tsconfig, build)                                                                                                                      | merged (PR #5)  |
+| 2026-08-21 | claude/chrome-extension-architecture-cj7pul | tooling: ESLint + typescript-eslint, CI workflow, TS pin 6.0.x, lint-driven fixes across src/                                                                                           | merged (PR #6)  |
+| 2026-08-21 | claude/chrome-extension-architecture-cj7pul | tooling round 2: Prettier, Husky pre-push, Playwright e2e (e2e/), icons (src/icons + gen script), Dependabot, build.mjs copy fix                                                        | merged (PR #6)  |
+| 2026-08-21 | claude/chrome-extension-architecture-cj7pul | popup/scoringUI (Boolean pre-validation), test/booleanExpression                                                                                                                        | merged (PR #11) |
+| 2026-08-21 | claude/chrome-extension-architecture-cj7pul | pageExtractor (login detection), committed prebuilt dist/, .gitignore/.gitattributes, README install                                                                                    | merged (PR #11) |
+| 2026-08-21 | claude/chrome-extension-architecture-cj7pul | content/autoscroll (dup-extract fix), shared/csv (new, injection-safe) + csvExport, scoring/scoringEngine (compile rule once), test/                                                    | done (unmerged) |
+| 2026-08-21 | claude/multi-account-project-rcmfpz         | background/scoring (coverage-based rewrite), test/scoring                                                                                                                               | done (unmerged) |
+| 2026-08-21 | claude/multi-account-project-rcmfpz         | AI eval (DeepSeek): shared/aiEvaluation, background/deepseek+aiEvalEngine, popup settings/aiEvalUI, manifest host perm, test/                                                           | done (unmerged) |
+| 2026-08-24 | claude/multi-account-project-rcmfpz         | shortlist (popup/shortlist, render/csv/dom/html), COLLAB rule                                                                                                                           | merged (PR #20) |
+| 2026-08-24 | claude/multi-account-project-rcmfpz         | dashboard (src/dashboard/*, shared/scoreView, popup button, build copy)                                                                                                                 | done (unmerged) |
+| 2026-08-24 | claude/chrome-extension-architecture-cj7pul | XLSX export (v1.24.0): new shared/xlsx (pure, AutoFilter, +tests), candidateExport buildCandidateSheet + ext param, dashboard + popup Excel buttons, e2e empty-state assertion loosened | done (unmerged) |
+
+### 2026-08-24 — Excel export with filter arrows (branch `claude/chrome-extension-architecture-cj7pul`)
+
+Real `.xlsx` export so Score / AI Score can be sorted high↔low in Excel.
+
+- `shared/xlsx.ts` (pure, zero-dep): builds a valid single-sheet workbook — a
+  "store"-method ZIP of minimal OOXML — with `<autoFilter>` on the header row, so
+  every column gets Excel's sort/filter dropdown. Numbers are numeric cells (sort
+  numerically); blanks are omitted. Unit-tested (5), incl. a Python zipfile CRC
+  check done during dev.
+- `shared/candidateExport.ts`: added `buildCandidateSheet` (numeric Score/AI,
+  blank for missing) sharing logic with `buildCandidateRows`; `exportFilename`
+  gained an optional `ext` arg (default `csv`, back-compatible).
+- Dashboard: **⬇ Export Excel** button beside Export CSV (exports the current
+  view). Popup: **Excel** button beside CSV; `csvExport.ts` refactored to a shared
+  `buildExportRows(blank)` + `download()` used by both CSV and XLSX.
+- Version 1.23.0 → **1.24.0**.
 
 ### 2026-08-21 — correctness bug fixes, round 3 (branch `claude/chrome-extension-architecture-cj7pul`)
 

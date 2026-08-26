@@ -14,6 +14,7 @@ export const dom = {
   copyAllBtn: id<HTMLButtonElement>('copyAllBtn'),
   scoreBtn: id<HTMLButtonElement>('scoreBtn'),
   exportBtn: id<HTMLButtonElement>('exportBtn'),
+  exportXlsxBtn: id<HTMLButtonElement>('exportXlsxBtn'),
   resultsContainer: id<HTMLDivElement>('resultsContainer'),
   profileCount: id<HTMLSpanElement>('profileCount'),
   status: id<HTMLSpanElement>('status'),

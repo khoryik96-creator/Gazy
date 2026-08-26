@@ -27,7 +27,12 @@ import type { AiUsage, AiPrices } from '../shared/aiCost.js';
 import { getScoringKeywords } from '../shared/keywordExtraction.js';
 import { compileBooleanRule } from '../shared/booleanExpression.js';
 import { largeRunWarning } from '../shared/runGuard.js';
-import { buildCandidateCsv, exportFilename } from '../shared/candidateExport.js';
+import {
+  buildCandidateCsv,
+  buildCandidateSheet,
+  exportFilename,
+} from '../shared/candidateExport.js';
+import { buildXlsx } from '../shared/xlsx.js';
 import type { FolderStore } from '../shared/folders.js';
 import type { ScoresMap, AiEvalMap, AiModel } from '../shared/types.js';
 
@@ -72,6 +77,7 @@ const scoreBtn = el<HTMLButtonElement>('scoreBtn');
 const aiEvalBtn = el<HTMLButtonElement>('aiEvalBtn');
 const stopBtn = el<HTMLButtonElement>('stopBtn');
 const exportBtn = el<HTMLButtonElement>('exportBtn');
+const exportXlsxBtn = el<HTMLButtonElement>('exportXlsxBtn');
 const clearAllBtn = el<HTMLButtonElement>('clearAllBtn');
 const undoBtn = el<HTMLButtonElement>('undoBtn');
 const evalStatusEl = el<HTMLSpanElement>('evalStatus');
@@ -497,6 +503,37 @@ function exportCsv(): void {
   setEvalStatus('⬇ Exported ' + rows.length + ' candidate(s) from “' + viewScopeName() + '”.');
 }
 
+// Export the current view to a real .xlsx with the header row's filter/sort
+// arrows enabled, so Score and AI Score can be ordered highest/lowest right in
+// Excel. Score/AI are written as numbers so the sort is numeric.
+function exportXlsx(): void {
+  const rows = buildRows().filter((r) => inView(r.url));
+  if (rows.length === 0) {
+    setEvalStatus('No candidates to export.');
+    return;
+  }
+  const aoa = buildCandidateSheet(
+    rows.map((r) => ({
+      url: r.url,
+      score: r.kw,
+      ai: r.ai,
+      location: r.location,
+      folders: r.folders,
+    })),
+  );
+  const blob = new Blob([buildXlsx(aoa, 'Candidates')], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = exportFilename(viewScopeName(), Date.now(), 'xlsx');
+  a.click();
+  URL.revokeObjectURL(a.href);
+  setEvalStatus(
+    '⬇ Exported ' + rows.length + ' candidate(s) to Excel from “' + viewScopeName() + '”.',
+  );
+}
+
 function initHeaderSort(): void {
   document.querySelectorAll<HTMLTableCellElement>('th[data-sort]').forEach((th) => {
     th.addEventListener('click', () => {
@@ -694,6 +731,7 @@ el<HTMLButtonElement>('tabCost').addEventListener('click', () => setView({ kind:
 renameFolderBtn.addEventListener('click', () => void renameActiveFolder());
 deleteFolderBtn.addEventListener('click', () => void deleteActiveFolder());
 exportBtn.addEventListener('click', exportCsv);
+exportXlsxBtn.addEventListener('click', exportXlsx);
 clearAllBtn.addEventListener('click', () => void clearAll());
 undoBtn.addEventListener('click', () => void undoRemoval());
 stopBtn.addEventListener('click', stopRuns);

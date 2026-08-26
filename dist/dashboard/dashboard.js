@@ -9,7 +9,8 @@ import { emptyAiUsage, normalizeAiUsage, normalizePrices, DEFAULT_USD_TO_MYR, } 
 import { getScoringKeywords } from '../shared/keywordExtraction.js';
 import { compileBooleanRule } from '../shared/booleanExpression.js';
 import { largeRunWarning } from '../shared/runGuard.js';
-import { buildCandidateCsv, exportFilename } from '../shared/candidateExport.js';
+import { buildCandidateCsv, buildCandidateSheet, exportFilename, } from '../shared/candidateExport.js';
+import { buildXlsx } from '../shared/xlsx.js';
 const el = (id) => document.getElementById(id);
 const tbody = el('tbody');
 const emptyEl = el('empty');
@@ -19,6 +20,7 @@ const scoreBtn = el('scoreBtn');
 const aiEvalBtn = el('aiEvalBtn');
 const stopBtn = el('stopBtn');
 const exportBtn = el('exportBtn');
+const exportXlsxBtn = el('exportXlsxBtn');
 const clearAllBtn = el('clearAllBtn');
 const undoBtn = el('undoBtn');
 const evalStatusEl = el('evalStatus');
@@ -420,6 +422,32 @@ function exportCsv() {
     URL.revokeObjectURL(a.href);
     setEvalStatus('⬇ Exported ' + rows.length + ' candidate(s) from “' + viewScopeName() + '”.');
 }
+// Export the current view to a real .xlsx with the header row's filter/sort
+// arrows enabled, so Score and AI Score can be ordered highest/lowest right in
+// Excel. Score/AI are written as numbers so the sort is numeric.
+function exportXlsx() {
+    const rows = buildRows().filter((r) => inView(r.url));
+    if (rows.length === 0) {
+        setEvalStatus('No candidates to export.');
+        return;
+    }
+    const aoa = buildCandidateSheet(rows.map((r) => ({
+        url: r.url,
+        score: r.kw,
+        ai: r.ai,
+        location: r.location,
+        folders: r.folders,
+    })));
+    const blob = new Blob([buildXlsx(aoa, 'Candidates')], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = exportFilename(viewScopeName(), Date.now(), 'xlsx');
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setEvalStatus('⬇ Exported ' + rows.length + ' candidate(s) to Excel from “' + viewScopeName() + '”.');
+}
 function initHeaderSort() {
     document.querySelectorAll('th[data-sort]').forEach((th) => {
         th.addEventListener('click', () => {
@@ -620,6 +648,7 @@ el('tabCost').addEventListener('click', () => setView({ kind: 'cost' }));
 renameFolderBtn.addEventListener('click', () => void renameActiveFolder());
 deleteFolderBtn.addEventListener('click', () => void deleteActiveFolder());
 exportBtn.addEventListener('click', exportCsv);
+exportXlsxBtn.addEventListener('click', exportXlsx);
 clearAllBtn.addEventListener('click', () => void clearAll());
 undoBtn.addEventListener('click', () => void undoRemoval());
 stopBtn.addEventListener('click', stopRuns);

@@ -13,6 +13,7 @@ export const dom = {
     copyAllBtn: id('copyAllBtn'),
     scoreBtn: id('scoreBtn'),
     exportBtn: id('exportBtn'),
+    exportXlsxBtn: id('exportXlsxBtn'),
     resultsContainer: id('resultsContainer'),
     profileCount: id('profileCount'),
     status: id('status'),
