@@ -6,7 +6,10 @@ const { extractor, autoscroll } = window.__gazy;
 // across pages and decides what to surface to the popup (see searchSession.ts).
 function reportPage(): string[] {
   const urls = extractor ? extractor.collectProfiles() : [];
-  void chrome.runtime.sendMessage({ type: 'PAGE_EXTRACTED', data: urls });
+  // Attach page signals so the background can explain an empty page (logged out
+  // / layout changed / genuinely no results) instead of a generic message.
+  const signals = extractor ? extractor.pageSignals() : undefined;
+  void chrome.runtime.sendMessage({ type: 'PAGE_EXTRACTED', data: urls, signals });
   return urls;
 }
 

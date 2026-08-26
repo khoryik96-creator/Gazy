@@ -21,7 +21,7 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, sender, sendRespo
       return true;
 
     case MESSAGE.PAGE_EXTRACTED:
-      void handlePageExtracted(message.data, sender.tab?.id);
+      void handlePageExtracted(message.data, sender.tab?.id, message.signals);
       sendResponse({ status: 'ok' });
       return false;
 

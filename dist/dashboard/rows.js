@@ -107,3 +107,12 @@ export function inView(view, url, sets) {
 export function viewScopeName(view) {
     return view.kind === 'folder' ? view.name : view.kind;
 }
+// URLs whose keyword scrape failed (the ⚠️ rows) — the targets for "Retry
+// failed". A URL that was never scored is NOT failed; only an explicit
+// success === false counts.
+export function failedScrapeUrls(urls, scores) {
+    return urls.filter((u) => {
+        const e = scoreEntry(scores, u);
+        return e !== null && e.success === false;
+    });
+}

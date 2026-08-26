@@ -1,6 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isRetryable, shouldRetry, backoffDelayMs } from '../dist/shared/retry.js';
+import {
+  isRetryable,
+  shouldRetry,
+  backoffDelayMs,
+  isRetryableHttpStatus,
+} from '../dist/shared/retry.js';
 
 test('isRetryable: thin-content and transient are retryable; fatal is not', () => {
   assert.equal(isRetryable('thin-content'), true);
@@ -36,4 +41,9 @@ test('backoffDelayMs: result stays in a sane range across random bases', () => {
     // attempt 1 → 2× a base in [3000,6000] → [6000,12000].
     assert.ok(d >= 6000 && d <= 12000, `out of range: ${d}`);
   }
+});
+
+test('isRetryableHttpStatus: 429 and transient 5xx retry; other 4xx do not', () => {
+  for (const s of [429, 500, 502, 503, 504]) assert.equal(isRetryableHttpStatus(s), true);
+  for (const s of [200, 400, 401, 403, 404, 422]) assert.equal(isRetryableHttpStatus(s), false);
 });

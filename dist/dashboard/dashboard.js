@@ -1,7 +1,7 @@
 import { normalizeUiTheme } from '../shared/themes.js';
 import { MESSAGE } from '../shared/constants.js';
 import { emptyFolderStore, normalizeFolderStore, normalizeFolderName, createFolder, renameFolder, deleteFolder, toggleMembership, addMembership, folderCount, } from '../shared/folders.js';
-import { universeUrls as universeUrlsPure, buildRows as buildRowsPure, sortRows as sortRowsPure, inView as inViewPure, viewScopeName as viewScopeNamePure, } from './rows.js';
+import { universeUrls as universeUrlsPure, buildRows as buildRowsPure, sortRows as sortRowsPure, inView as inViewPure, viewScopeName as viewScopeNamePure, failedScrapeUrls, } from './rows.js';
 import { computeRemoveFromResults, computeRemoveFromFolder, computeRemoveFromShortlist, computeUndo, } from './removal.js';
 import { openFolderMenu, openFolderPickMenu, closeFolderMenu } from './folderMenu.js';
 import { initSidebar } from './sidebar.js';
@@ -25,6 +25,7 @@ const tableEl = el('tbl');
 const scoreBtn = el('scoreBtn');
 const aiEvalBtn = el('aiEvalBtn');
 const stopBtn = el('stopBtn');
+const retryFailedBtn = el('retryFailedBtn');
 const exportBtn = el('exportBtn');
 const exportXlsxBtn = el('exportXlsxBtn');
 const clearAllBtn = el('clearAllBtn');
@@ -232,6 +233,10 @@ function render() {
     renameFolderBtn.style.display = view.kind === 'folder' ? '' : 'none';
     deleteFolderBtn.style.display = view.kind === 'folder' ? '' : 'none';
     undoBtn.style.display = lastRemoved ? '' : 'none';
+    // Offer "Retry failed" only when the current view actually has ⚠️ failed scrapes.
+    const failedCount = failedScrapeUrls(rows.map((r) => r.url), scores).length;
+    retryFailedBtn.style.display = failedCount > 0 ? '' : 'none';
+    retryFailedBtn.textContent = '↻ Retry failed (' + failedCount + ')';
     syncSelectionUI(rows);
     updateHeaderArrows();
 }
@@ -597,6 +602,7 @@ exportXlsxBtn.addEventListener('click', exportXlsx);
 clearAllBtn.addEventListener('click', () => void clearAll());
 undoBtn.addEventListener('click', () => void undoRemoval());
 stopBtn.addEventListener('click', stopRuns);
+retryFailedBtn.addEventListener('click', retryFailed);
 selectAllEl.addEventListener('change', toggleSelectAll);
 bulkScoreBtn.addEventListener('click', () => void startScoring([...selected]));
 bulkEvalBtn.addEventListener('click', () => void startEval([...selected]));
@@ -613,6 +619,18 @@ function setRunning(on) {
     aiEvalBtn.disabled = on;
     bulkScoreBtn.disabled = on;
     bulkEvalBtn.disabled = on;
+    retryFailedBtn.disabled = on;
+}
+// Re-score only the candidates in the current view whose scrape failed (⚠️).
+// Reuses startScoring's target path so it goes through the same validation and
+// (now retrying) scraper — a transient failure often clears on a second pass.
+function retryFailed() {
+    const failed = failedScrapeUrls(viewUrls(), scores);
+    if (failed.length === 0) {
+        setEvalStatus('No failed candidates to retry.');
+        return;
+    }
+    void startScoring(failed);
 }
 function stopRuns() {
     void chrome.runtime.sendMessage({ type: MESSAGE.STOP_SCORING }).catch(() => { });

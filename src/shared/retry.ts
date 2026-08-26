@@ -18,6 +18,15 @@ export function isRetryable(failure: ScrapeFailure): boolean {
   return failure === 'thin-content' || failure === 'transient';
 }
 
+// HTTP statuses worth retrying on an API call: 429 (rate limited) and the
+// transient 5xx gateway/overload family. A 4xx other than 429 (e.g. 401 bad key,
+// 400 bad request) won't fix itself on a retry, so it's not retried.
+const RETRYABLE_HTTP = new Set([429, 500, 502, 503, 504]);
+
+export function isRetryableHttpStatus(status: number): boolean {
+  return RETRYABLE_HTTP.has(status);
+}
+
 /** Whether to retry now: the failure is retryable AND we're under the attempt cap. */
 export function shouldRetry(failure: ScrapeFailure, attempt: number, maxRetries: number): boolean {
   return isRetryable(failure) && attempt < maxRetries;

@@ -6,6 +6,8 @@ import {
   clampScanPages,
 } from '../shared/pagination.js';
 import { randomDelayMs, sleep } from '../shared/timing.js';
+import { diagnoseEmptyPage } from '../shared/pageDiagnostics.js';
+import type { PageSignals } from '../shared/pageDiagnostics.js';
 
 // Drives a multi-page search from the background. The popup asks for a query and
 // a page count; we navigate the active tab through the paginated result URLs one
@@ -73,16 +75,16 @@ export async function startSearch(req: SearchRequest): Promise<void> {
  * tab (e.g. the user browsed to a search manually), this falls back to the old
  * single-page behaviour. Otherwise it accumulates and drives pagination.
  */
-export async function handlePageExtracted(urls: unknown, tabId?: number): Promise<void> {
+export async function handlePageExtracted(
+  urls: unknown,
+  tabId?: number,
+  signals?: unknown,
+): Promise<void> {
   const list = Array.isArray(urls) ? (urls as string[]) : [];
 
   if (!session || session.done || tabId !== session.tabId) {
     if (list.length > 0) send({ type: MESSAGE.PROFILES_FOUND, data: list });
-    else
-      send({
-        type: MESSAGE.EXTRACTION_ERROR,
-        data: 'No profiles found. Try refreshing or scrolling manually.',
-      });
+    else send({ type: MESSAGE.EXTRACTION_ERROR, data: emptyMessage(signals, list.length) });
     return;
   }
 
@@ -110,8 +112,22 @@ export async function handlePageExtracted(urls: unknown, tabId?: number): Promis
   const final = session.collected;
   await chrome.storage.local.set({ profiles: final });
   if (final.length > 0) send({ type: MESSAGE.PROFILES_FOUND, data: final });
-  else send({ type: MESSAGE.EXTRACTION_ERROR, data: 'No profiles found. Try a different search.' });
+  else send({ type: MESSAGE.EXTRACTION_ERROR, data: emptyMessage(signals, final.length) });
   session = null;
+}
+
+// Coerce the (untrusted) signals object from the content script into PageSignals
+// with safe defaults, then explain the empty page. `matched` is forced to the
+// authoritative count the background actually has, so a stale/garbage signal
+// can't claim results exist when none were collected.
+function emptyMessage(signals: unknown, matched: number): string {
+  const s = (signals ?? {}) as Partial<PageSignals>;
+  return diagnoseEmptyPage({
+    onSearchPage: s.onSearchPage === true,
+    loginWall: s.loginWall === true,
+    hasResultsContainer: s.hasResultsContainer === true,
+    matched,
+  });
 }
 
 function send(message: object): void {

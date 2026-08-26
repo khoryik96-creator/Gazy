@@ -43,6 +43,12 @@ export const SCRAPE_DELAY_MAX_MS = 4000; // max settle time before scraping a lo
 export const RETRY_DELAY_MIN_MS = 3000; // min backoff before retrying thin content
 export const RETRY_DELAY_MAX_MS = 6000; // max backoff before retrying thin content
 
+// DeepSeek API retry: on a 429 (rate limit) or transient 5xx, retry the call a
+// few times with exponential backoff before recording the profile as failed.
+export const AI_RETRY_COUNT = 3;
+export const AI_RETRY_DELAY_MIN_MS = 1000;
+export const AI_RETRY_DELAY_MAX_MS = 2500;
+
 // Multi-page result scanning. A LinkedIn people-search page holds ~10 results;
 // to reach more candidates we walk the paginated URL (&page=N) one page at a
 // time, pausing a randomised gap between page turns for the same anti-detection
