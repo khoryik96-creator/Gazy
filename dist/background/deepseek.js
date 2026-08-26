@@ -2,8 +2,8 @@ import { DEEPSEEK_API_URL } from '../shared/constants.js';
 import { buildEvaluationMessages, parseEvaluationResponse } from '../shared/aiEvaluation.js';
 /**
  * Sends one profile to DeepSeek's OpenAI-compatible chat-completions endpoint
- * and returns the parsed evaluation. Throws on transport/HTTP/parse errors so
- * the engine can record a per-profile failure without aborting the run.
+ * and returns the parsed evaluation plus token usage. Throws on transport/HTTP/
+ * parse errors so the engine can record a per-profile failure without aborting.
  */
 export async function evaluateProfile({ apiKey, model, jd, profileText, }) {
     const { system, user } = buildEvaluationMessages(jd, profileText);
@@ -34,5 +34,9 @@ export async function evaluateProfile({ apiKey, model, jd, profileText, }) {
     const content = data.choices?.[0]?.message?.content;
     if (!content)
         throw new Error('DeepSeek returned an empty response.');
-    return parseEvaluationResponse(content);
+    return {
+        entry: parseEvaluationResponse(content),
+        inputTokens: data.usage?.prompt_tokens ?? 0,
+        outputTokens: data.usage?.completion_tokens ?? 0,
+    };
 }

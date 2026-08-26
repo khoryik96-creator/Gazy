@@ -1,6 +1,7 @@
 import { MESSAGE } from '../shared/constants.js';
 import { fetchProfileData } from './profileFetcher.js';
 import { evaluateProfile } from './deepseek.js';
+import { normalizeAiUsage, addUsage, type AiUsage } from '../shared/aiCost.js';
 import type { AiEvalEntry, AiEvalMap, AiEvalRequest } from '../shared/types.js';
 
 let running = false;
@@ -35,12 +36,14 @@ export function stopAiEval(): void {
  * AI_EVAL_COMPLETE at the end; a per-profile failure is recorded, not fatal.
  */
 async function runAiEvalLoop(req: AiEvalRequest): Promise<void> {
-  // Start from any AI evals already saved, so evaluating a subset (e.g. from the
-  // dashboard) merges rather than wipes the rest.
-  const stored = (await chrome.storage.local.get('aiEvals')) as unknown as {
+  // Start from any AI evals + cost usage already saved, so evaluating a subset
+  // (e.g. from the dashboard) merges rather than wipes the rest.
+  const stored = (await chrome.storage.local.get(['aiEvals', 'aiUsage'])) as unknown as {
     aiEvals?: AiEvalMap;
+    aiUsage?: unknown;
   };
   const results: AiEvalMap = { ...(stored.aiEvals || {}) };
+  let usage: AiUsage = normalizeAiUsage(stored.aiUsage);
   const total = req.profiles.length;
   let index = 0;
 
@@ -51,20 +54,22 @@ async function runAiEvalLoop(req: AiEvalRequest): Promise<void> {
       let entry: AiEvalEntry;
       try {
         const data = await fetchProfileData(url);
-        entry = await evaluateProfile({
+        const result = await evaluateProfile({
           apiKey: req.apiKey,
           model: req.model,
           jd: req.jd,
           profileText: data.fullText,
         });
+        entry = result.entry;
+        usage = addUsage(usage, req.model, result.inputTokens, result.outputTokens);
       } catch (e) {
         entry = { score: 0, reason: '', matched: [], missing: [], error: (e as Error).message };
       }
       results[url] = entry;
 
-      // Persist from the background so results survive the popup closing and are
-      // picked up live by the dashboard.
-      await chrome.storage.local.set({ aiEvals: results });
+      // Persist from the background so results + cost survive the popup closing
+      // and are picked up live by the dashboard.
+      await chrome.storage.local.set({ aiEvals: results, aiUsage: usage });
 
       void chrome.runtime
         .sendMessage({

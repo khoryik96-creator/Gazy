@@ -592,6 +592,89 @@ td.num {
   font-size: 14px;
 }
 
+/* ---- Cost tab ---- */
+.cost-totals {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+.cost-big {
+  flex: 1;
+  min-width: 160px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+.cost-cur {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+.cost-amt {
+  display: block;
+  margin-top: 4px;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.cost-rate {
+  min-width: 150px;
+}
+.cost-rate .side-inp {
+  margin-top: 5px;
+}
+.cost-sub {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.cost-table td:first-child,
+.cost-table th:first-child {
+  padding-left: 14px;
+}
+.cost-prices {
+  margin-top: 14px;
+}
+.cost-prices > summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.cost-price-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+.cost-price-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.cost-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+.cost-note {
+  font-size: 12px;
+  color: var(--muted);
+}
+
 /* Narrow screens: stack the rail above the results. */
 @media (max-width: 920px) {
   .dash-layout {
