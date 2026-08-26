@@ -1,6 +1,6 @@
 {
   "name": "gazy",
-  "version": "1.23.0",
+  "version": "1.24.0",
   "private": true,
   "type": "module",
   "description": "Chrome MV3 extension: extract, score, and export LinkedIn people-search results. Written in TypeScript; `npm run build` compiles src/ to dist/, which is the folder loaded as the unpacked extension.",

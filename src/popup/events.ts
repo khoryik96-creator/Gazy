@@ -4,7 +4,7 @@ import { setStatus } from './status.js';
 import { renderProfiles } from './render.js';
 import { clearFormData } from './formData.js';
 import { removeStorage } from './storage.js';
-import { exportCSV, copyAllURLs } from './csvExport.js';
+import { exportCSV, exportXLSX, copyAllURLs } from './csvExport.js';
 import { initSearchButton } from './searchUI.js';
 import { initScoreButton } from './scoringUI.js';
 import { initAiEvalButton } from './aiEvalUI.js';
@@ -18,6 +18,7 @@ export function initButtons(): void {
   initAiEvalButton();
 
   dom.exportBtn.addEventListener('click', exportCSV);
+  dom.exportXlsxBtn.addEventListener('click', exportXLSX);
   dom.copyAllBtn.addEventListener('click', () => void copyAllURLs());
 
   dom.dashboardBtn.addEventListener('click', () => {
