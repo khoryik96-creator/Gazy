@@ -7,6 +7,7 @@ import {
   sortRows,
   inView,
   viewScopeName,
+  failedScrapeUrls,
 } from '../dist/dashboard/rows.js';
 
 const U = {
@@ -83,4 +84,14 @@ test('viewScopeName: folder name for folder view, else the kind', () => {
   assert.equal(viewScopeName({ kind: 'all' }), 'all');
   assert.equal(viewScopeName({ kind: 'shortlist' }), 'shortlist');
   assert.equal(viewScopeName({ kind: 'folder', name: 'Frontend' }), 'Frontend');
+});
+
+test('failedScrapeUrls: only success===false counts; scored and unscored do not', () => {
+  const scores = {
+    [U.a]: { success: false, score: 0, location: '' }, // failed scrape
+    [U.b]: { success: true, score: 70, location: '' }, // scored fine
+    // carol: never scored (absent)
+  };
+  assert.deepEqual(failedScrapeUrls([U.a, U.b, U.c], scores), [U.a]);
+  assert.deepEqual(failedScrapeUrls([U.b, U.c], scores), []); // nothing failed
 });

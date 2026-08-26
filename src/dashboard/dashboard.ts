@@ -17,6 +17,7 @@ import {
   sortRows as sortRowsPure,
   inView as inViewPure,
   viewScopeName as viewScopeNamePure,
+  failedScrapeUrls,
 } from './rows.js';
 import type { Row, View, SortKey } from './rows.js';
 import {
@@ -62,6 +63,7 @@ const tableEl = el<HTMLTableElement>('tbl');
 const scoreBtn = el<HTMLButtonElement>('scoreBtn');
 const aiEvalBtn = el<HTMLButtonElement>('aiEvalBtn');
 const stopBtn = el<HTMLButtonElement>('stopBtn');
+const retryFailedBtn = el<HTMLButtonElement>('retryFailedBtn');
 const exportBtn = el<HTMLButtonElement>('exportBtn');
 const exportXlsxBtn = el<HTMLButtonElement>('exportXlsxBtn');
 const clearAllBtn = el<HTMLButtonElement>('clearAllBtn');
@@ -290,6 +292,13 @@ function render(): void {
   renameFolderBtn.style.display = view.kind === 'folder' ? '' : 'none';
   deleteFolderBtn.style.display = view.kind === 'folder' ? '' : 'none';
   undoBtn.style.display = lastRemoved ? '' : 'none';
+  // Offer "Retry failed" only when the current view actually has ⚠️ failed scrapes.
+  const failedCount = failedScrapeUrls(
+    rows.map((r) => r.url),
+    scores,
+  ).length;
+  retryFailedBtn.style.display = failedCount > 0 ? '' : 'none';
+  retryFailedBtn.textContent = '↻ Retry failed (' + failedCount + ')';
   syncSelectionUI(rows);
   updateHeaderArrows();
 }
@@ -696,6 +705,7 @@ exportXlsxBtn.addEventListener('click', exportXlsx);
 clearAllBtn.addEventListener('click', () => void clearAll());
 undoBtn.addEventListener('click', () => void undoRemoval());
 stopBtn.addEventListener('click', stopRuns);
+retryFailedBtn.addEventListener('click', retryFailed);
 selectAllEl.addEventListener('change', toggleSelectAll);
 bulkScoreBtn.addEventListener('click', () => void startScoring([...selected]));
 bulkEvalBtn.addEventListener('click', () => void startEval([...selected]));
@@ -713,6 +723,19 @@ function setRunning(on: boolean): void {
   aiEvalBtn.disabled = on;
   bulkScoreBtn.disabled = on;
   bulkEvalBtn.disabled = on;
+  retryFailedBtn.disabled = on;
+}
+
+// Re-score only the candidates in the current view whose scrape failed (⚠️).
+// Reuses startScoring's target path so it goes through the same validation and
+// (now retrying) scraper — a transient failure often clears on a second pass.
+function retryFailed(): void {
+  const failed = failedScrapeUrls(viewUrls(), scores);
+  if (failed.length === 0) {
+    setEvalStatus('No failed candidates to retry.');
+    return;
+  }
+  void startScoring(failed);
 }
 
 function stopRuns(): void {

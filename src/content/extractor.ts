@@ -64,5 +64,28 @@ window.__gazy.extractor = (() => {
     return extractedURLs;
   }
 
-  return { collectProfiles, getExtractedURLs };
+  // Detects a login / auth wall: LinkedIn redirects logged-out users to
+  // /login or /authwall, or renders a sign-in form on the page.
+  function loginWallPresent(): boolean {
+    const path = window.location.pathname;
+    if (path.includes('/login') || path.includes('/authwall') || path.includes('/checkpoint')) {
+      return true;
+    }
+    return !!document.querySelector(
+      'form.login__form, form[action*="login-submit"], input[name="session_password"]',
+    );
+  }
+
+  // Cheap signals about the current page, used to explain an empty result set
+  // (logged out vs layout change vs genuinely no matches). See pageDiagnostics.
+  function pageSignals(): GazySignals {
+    return {
+      onSearchPage: window.location.href.includes('linkedin.com/search/results/people'),
+      loginWall: loginWallPresent(),
+      hasResultsContainer: RESULT_ROOTS.some((sel) => !!document.querySelector(sel)),
+      matched: extractedURLs.length,
+    };
+  }
+
+  return { collectProfiles, getExtractedURLs, pageSignals };
 })();

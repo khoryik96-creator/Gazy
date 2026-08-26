@@ -102,6 +102,21 @@ test('dashboard renders seeded candidates, sorts, switches views, and selects in
     await expect(page.locator('#bulkBar')).toBeVisible();
     await expect(page.locator('#bulkCount')).toHaveText('3 selected');
 
+    // "Retry failed" stays hidden when nothing failed...
+    await expect(page.locator('#retryFailedBtn')).toBeHidden();
+    // ...and appears (with a count) once a candidate has a failed scrape.
+    await page.evaluate(
+      (u) =>
+        chrome.storage.local.set({
+          profileScores: {
+            [u]: { success: false, score: 0, location: '' },
+          },
+        }),
+      SEED.profiles[0],
+    );
+    await expect(page.locator('#retryFailedBtn')).toBeVisible();
+    await expect(page.locator('#retryFailedBtn')).toContainText('Retry failed (1)');
+
     expect(errors, `dashboard threw: ${errors.join('; ')}`).toEqual([]);
   } finally {
     await context.close();
