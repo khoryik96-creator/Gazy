@@ -12,6 +12,7 @@ import { compileBooleanRule } from '../shared/booleanExpression.js';
 import { largeRunWarning } from '../shared/runGuard.js';
 import { buildCandidateCsv, buildCandidateSheet, exportFilename, } from '../shared/candidateExport.js';
 import { buildXlsx } from '../shared/xlsx.js';
+import { serializeWorkspace, parseWorkspace, WORKSPACE_KEYS } from '../shared/workspaceBackup.js';
 // Full-page dashboard. Reads the same chrome.storage.local data the popup
 // writes (profiles, profileScores, aiEvals, shortlist, folders) and shows it in
 // a roomy, sortable table. Views: All results / Shortlist / any named folder.
@@ -28,6 +29,9 @@ const stopBtn = el('stopBtn');
 const retryFailedBtn = el('retryFailedBtn');
 const exportBtn = el('exportBtn');
 const exportXlsxBtn = el('exportXlsxBtn');
+const backupBtn = el('backupBtn');
+const restoreBtn = el('restoreBtn');
+const restoreFile = el('restoreFile');
 const clearAllBtn = el('clearAllBtn');
 const undoBtn = el('undoBtn');
 const evalStatusEl = el('evalStatus');
@@ -408,6 +412,47 @@ function exportXlsx() {
     URL.revokeObjectURL(a.href);
     setEvalStatus('⬇ Exported ' + rows.length + ' candidate(s) to Excel from “' + viewScopeName() + '”.');
 }
+// Download a JSON backup of the whole workspace (folders, shortlist, scores, AI
+// evals, templates, settings) — everything except the secret API key. Restores
+// on any machine via the Restore button.
+async function backupWorkspace() {
+    const stored = await chrome.storage.local.get([...WORKSPACE_KEYS]);
+    const appVersion = chrome.runtime.getManifest().version;
+    const json = serializeWorkspace(stored, appVersion);
+    const blob = new Blob([json], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.download = 'gazy-workspace-' + stamp + '.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setEvalStatus('💾 Backed up your workspace.');
+}
+// Restore a workspace from a chosen backup file. Replaces the current data for
+// the keys present in the file (a confirm guards the overwrite); the API key and
+// any unknown keys are ignored by parseWorkspace.
+async function restoreWorkspaceFromFile(file) {
+    let parsed;
+    try {
+        parsed = parseWorkspace(await file.text());
+    }
+    catch (e) {
+        setEvalStatus('❌ ' + e.message);
+        return;
+    }
+    if (parsed.keyCount === 0) {
+        setEvalStatus('That backup had no workspace data to restore.');
+        return;
+    }
+    const when = parsed.exportedAt ? ' (from ' + parsed.exportedAt.slice(0, 10) + ')' : '';
+    if (!confirm('Restore this backup' +
+        when +
+        '?\nThis REPLACES your current folders, shortlist, scores, and settings with the file’s.')) {
+        return;
+    }
+    await chrome.storage.local.set(parsed.data);
+    setEvalStatus('⟳ Restored your workspace from the backup.');
+}
 function initHeaderSort() {
     document.querySelectorAll('th[data-sort]').forEach((th) => {
         th.addEventListener('click', () => {
@@ -599,6 +644,14 @@ renameFolderBtn.addEventListener('click', () => void renameActiveFolder());
 deleteFolderBtn.addEventListener('click', () => void deleteActiveFolder());
 exportBtn.addEventListener('click', exportCsv);
 exportXlsxBtn.addEventListener('click', exportXlsx);
+backupBtn.addEventListener('click', () => void backupWorkspace());
+restoreBtn.addEventListener('click', () => restoreFile.click());
+restoreFile.addEventListener('change', () => {
+    const file = restoreFile.files?.[0];
+    if (file)
+        void restoreWorkspaceFromFile(file);
+    restoreFile.value = ''; // allow re-selecting the same file later
+});
 clearAllBtn.addEventListener('click', () => void clearAll());
 undoBtn.addEventListener('click', () => void undoRemoval());
 stopBtn.addEventListener('click', stopRuns);
