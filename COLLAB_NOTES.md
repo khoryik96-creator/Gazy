@@ -32,7 +32,7 @@ your status changes.
 > **patch** (x.y.Z) for fixes/tweaks, **minor** (x.Y.0) for a new user-facing
 > feature. `npm version <v> --no-git-tag-version` updates package.json + lock;
 > hand-edit `src/manifest.json` to match, then `npm run build` so `dist/manifest.json`
-> updates too. Current: **1.29.0**.
+> updates too. Current: **1.29.1**.
 
 > 🧱 **Every feature must be modular, efficient, and non-regressing** (owner's
 > standing rule, 2026-08-24). New work goes in its OWN file in the right layer
@@ -45,6 +45,7 @@ your status changes.
 
 ## Status log
 
+| 2026-08-26 | claude/chrome-extension-architecture-cj7pul | RENDER EFFICIENCY (v1.29.1): dashboard selection toggles (row checkbox, select-all, clear) now repaint only the affected rows via new refreshSelectionUI() (live rowEls Map<url,{tr,chk}> + currentRows) instead of rebuilding the entire table on every click — noticeably snappier at hundreds of rows. Data changes still use full render(). Behaviour-preserving; e2e extended to assert single-row toggle updates the .sel highlight + count. | done (unmerged) |
 | 2026-08-26 | claude/chrome-extension-architecture-cj7pul | TYPED STORAGE (code health, no bump): new `shared/storage.ts` — central `StorageShape` interface + typed `getStorage(keys)` / `getStorageKey` / `setStorage`. Removed ALL ad-hoc `as unknown as {…}` casts from storage reads (dashboard.ts load/startEval/startScoring, aiEvalEngine, sidebar templates+settings). Moved `RemovedSnapshot` into shared/types.ts (removal.ts re-exports it) so `lastRemoved` is typed. formData now typed as Template (optional-chained at call sites). Only the one narrowing cast left is inside getStorage itself. Typecheck now catches storage-shape drift. | done |
 | 2026-08-26 | claude/chrome-extension-architecture-cj7pul | WEB STORE READINESS (docs only, no bump): added PRIVACY.md (accurate: all data device-local in chrome.storage.local; only outbound = LinkedIn pages being browsed + user-configured AI provider on explicit AI-evaluate; API key never leaves device / never in backups; permission-by-permission rationale matching the manifest), docs/STORE_LISTING.md (name/short+detailed description/category/single-purpose/permission justifications/screenshot list) and docs/PUBLISHING.md (owner submission checklist; reuses release.yml zip). Contact email left as a placeholder for the owner to fill. | done |
 | 2026-08-26 | claude/chrome-extension-architecture-cj7pul | A11Y + SHORTCUT + RUN REPORT (v1.29.0): (1) Accessibility — aria-labels on icon-only controls (row checkbox 'Select <name>', ☆ star with aria-pressed, 🏷 folder, select-all) + a global :focus-visible ring (var(--accent)) in dashboard.css/popup.css for keyboard users. (2) Keyboard shortcut — manifest `commands` open-dashboard (Ctrl/Cmd+Shift+G); new background/commands.ts opens the dashboard tab; rebindable at chrome://extensions/shortcuts. (3) Run report — new pure `shared/runReport.ts` (scoreOutcome/aiOutcome/outcomeLabel, +4 tests); completion now shows '⭐ Scored N · ⚠️ M failed' / '✦ Evaluated N' over the exact run targets (tracked in lastScore/EvalTargets). | done (unmerged) |

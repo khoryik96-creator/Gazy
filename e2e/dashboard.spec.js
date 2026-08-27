@@ -102,6 +102,14 @@ test('dashboard renders seeded candidates, sorts, switches views, and selects in
     await expect(page.locator('#bulkBar')).toBeVisible();
     await expect(page.locator('#bulkCount')).toHaveText('3 selected');
 
+    // Incremental selection repaint: clearing then toggling one row updates just
+    // that row's highlight + the count, without a full rebuild.
+    await page.locator('#selectAll').click(); // clear
+    await expect(page.locator('#bulkBar')).toBeHidden();
+    await page.locator('#tbody tr').first().locator('.selchk').click();
+    await expect(page.locator('#tbody tr.sel')).toHaveCount(1);
+    await expect(page.locator('#bulkCount')).toHaveText('1 selected');
+
     // "Retry failed" stays hidden when nothing failed...
     await expect(page.locator('#retryFailedBtn')).toBeHidden();
     // ...and appears (with a count) once a candidate has a failed scrape.

@@ -108,6 +108,12 @@ let selected = new Set<string>();
 // Anchor for Shift-click range selection: the URL of the last row clicked.
 let lastSelUrl: string | null = null;
 
+// The rows currently rendered + live references to each row's <tr>/checkbox, so a
+// selection toggle can repaint just the affected rows instead of rebuilding the
+// whole table (which, at hundreds of rows, made every checkbox click laggy).
+let currentRows: Row[] = [];
+const rowEls = new Map<string, { tr: HTMLTableRowElement; chk: HTMLInputElement }>();
+
 let view: View = { kind: 'all' };
 let sortKey: SortKey = 'kw';
 let sortDir: 1 | -1 = -1; // default: highest score first
@@ -205,7 +211,9 @@ function render(): void {
   for (const u of [...selected]) if (!present.has(u)) selected.delete(u);
 
   tbody.replaceChildren();
+  rowEls.clear();
   const viewRows = rows; // captured for range selection at click time
+  currentRows = rows; // for incremental selection repaint (refreshSelectionUI)
   viewRows.forEach((r, idx) => {
     const tr = document.createElement('tr');
     if (selected.has(r.url)) tr.className = 'sel';
@@ -234,10 +242,11 @@ function render(): void {
         selected.delete(r.url);
       }
       lastSelUrl = r.url;
-      render();
+      refreshSelectionUI(); // selection-only change → repaint rows, don't rebuild
     });
     selTd.appendChild(chk);
     tr.appendChild(selTd);
+    rowEls.set(r.url, { tr, chk });
 
     const starTd = document.createElement('td');
     const star = document.createElement('button');
@@ -315,6 +324,19 @@ function syncSelectionUI(rows: Row[]): void {
   const n = selected.size;
   bulkBar.style.display = n > 0 ? '' : 'none';
   bulkCountEl.textContent = n + ' selected';
+}
+
+// Repaint selection state (row highlight + checkbox) on the already-rendered rows
+// and refresh the header/bulk-bar — without rebuilding the table. Used for
+// selection-only changes (row toggle, select-all, clear), which don't change the
+// row set. Data changes still go through the full render().
+function refreshSelectionUI(): void {
+  for (const [url, { tr, chk }] of rowEls) {
+    const on = selected.has(url);
+    tr.classList.toggle('sel', on);
+    chk.checked = on;
+  }
+  syncSelectionUI(currentRows);
 }
 
 // One cell per candidate: the folders it belongs to as pills, plus a 🏷 button
@@ -557,7 +579,7 @@ function toggleSelectAll(): void {
   const urls = viewUrls();
   if (selectAllEl.checked) urls.forEach((u) => selected.add(u));
   else urls.forEach((u) => selected.delete(u));
-  render();
+  refreshSelectionUI(); // selection-only change
 }
 
 async function bulkSetShortlist(add: boolean): Promise<void> {
@@ -603,7 +625,7 @@ async function applyBulkFolder(rawName: string, create: boolean): Promise<void> 
 
 function clearSelection(): void {
   selected = new Set();
-  render();
+  refreshSelectionUI(); // selection-only change
 }
 
 // ---- Remove candidates (view-aware) ----
