@@ -6,6 +6,7 @@ import { clampScanPages } from '../shared/pagination.js';
 import { DEFAULT_SCAN_PAGES, MAX_SCAN_PAGES } from '../shared/constants.js';
 import { COUNTRIES, canonicalCountry } from '../shared/countries.js';
 import { readJdFile } from './fileImport.js';
+import { getStorage } from '../shared/storage.js';
 // The dashboard's left rail (Option A "Sidebar Console"). It owns the search
 // criteria, templates, and settings — persisting to the SAME storage keys the
 // popup uses (formData, templates, aiKey, aiModel, uiTheme, scanPages), so the
@@ -189,7 +190,7 @@ export function initSidebar() {
     aiSmart.addEventListener('change', () => applyModel(aiSmart.checked ? SMART : FAST));
     // ---- Templates (same `templates` storage as the popup) ----
     const loadTemplateDropdown = async () => {
-        const { templates = {} } = (await chrome.storage.local.get('templates'));
+        const { templates = {} } = await getStorage(['templates']);
         templateSelect.innerHTML = '<option value="">— Load template —</option>';
         for (const name in templates) {
             const opt = document.createElement('option');
@@ -203,7 +204,7 @@ export function initSidebar() {
             const name = window.prompt('Template name:', templateSelect.value || '')?.trim();
             if (!name)
                 return;
-            const { templates = {} } = (await chrome.storage.local.get('templates'));
+            const { templates = {} } = await getStorage(['templates']);
             if (templates[name] && !window.confirm('Overwrite template “' + name + '”?'))
                 return;
             templates[name] = {
@@ -223,7 +224,7 @@ export function initSidebar() {
             const name = templateSelect.value;
             if (!name)
                 return;
-            const { templates = {} } = (await chrome.storage.local.get('templates'));
+            const { templates = {} } = await getStorage(['templates']);
             const t = templates[name];
             if (!t)
                 return;
@@ -240,7 +241,7 @@ export function initSidebar() {
             const name = templateSelect.value;
             if (!name || !window.confirm('Delete template “' + name + '”?'))
                 return;
-            const { templates = {} } = (await chrome.storage.local.get('templates'));
+            const { templates = {} } = await getStorage(['templates']);
             delete templates[name];
             await chrome.storage.local.set({ templates });
             await loadTemplateDropdown();
@@ -249,13 +250,7 @@ export function initSidebar() {
     });
     // ---- Initial load of persisted values ----
     void (async () => {
-        const data = (await chrome.storage.local.get([
-            'formData',
-            'aiKey',
-            'aiModel',
-            'uiTheme',
-            'scanPages',
-        ]));
+        const data = await getStorage(['formData', 'aiKey', 'aiModel', 'uiTheme', 'scanPages']);
         const fd = data.formData;
         if (fd) {
             jd.value = fd.jd || '';

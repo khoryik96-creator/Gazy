@@ -13,17 +13,11 @@
 
 import { addMembership, removeUrlsFromFolder } from '../shared/folders.js';
 import type { FolderStore } from '../shared/folders.js';
-import type { ScoresMap, AiEvalMap } from '../shared/types.js';
+import type { ScoresMap, AiEvalMap, RemovedSnapshot } from '../shared/types.js';
 
-// Everything needed to put a removed set of candidates back exactly as it was.
-export interface RemovedSnapshot {
-  urls: string[];
-  scores: ScoresMap;
-  aiEvals: AiEvalMap;
-  shortlisted: string[];
-  folders: Record<string, string[]>; // folder name → removed urls that were in it
-  count?: number; // how many candidates the removal affected (for the Undo label)
-}
+// The snapshot shape lives in shared/types.ts (so it can type storage); re-export
+// it here since this module owns the removal/undo logic that produces it.
+export type { RemovedSnapshot } from '../shared/types.js';
 
 export function emptySnapshot(): RemovedSnapshot {
   return { urls: [], scores: {}, aiEvals: {}, shortlisted: [], folders: {}, count: 0 };

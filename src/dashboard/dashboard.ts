@@ -48,6 +48,7 @@ import {
 import { buildXlsx } from '../shared/xlsx.js';
 import { serializeWorkspace, parseWorkspace, WORKSPACE_KEYS } from '../shared/workspaceBackup.js';
 import { scoreOutcome, aiOutcome, outcomeLabel } from '../shared/runReport.js';
+import { getStorage } from '../shared/storage.js';
 import type { FolderStore } from '../shared/folders.js';
 import type { ScoresMap, AiEvalMap, AiModel } from '../shared/types.js';
 
@@ -117,7 +118,7 @@ let lastScoreTargets: string[] = [];
 let lastEvalTargets: string[] = [];
 
 async function load(): Promise<void> {
-  const data = (await chrome.storage.local.get([
+  const data = await getStorage([
     'profiles',
     'profileScores',
     'aiEvals',
@@ -128,18 +129,7 @@ async function load(): Promise<void> {
     'usdToMyr',
     'lastRemoved',
     'uiTheme',
-  ])) as unknown as {
-    profiles?: string[];
-    profileScores?: ScoresMap;
-    aiEvals?: AiEvalMap;
-    shortlist?: string[];
-    folders?: unknown;
-    aiUsage?: unknown;
-    aiPrices?: unknown;
-    usdToMyr?: number;
-    lastRemoved?: RemovedSnapshot;
-    uiTheme?: string;
-  };
+  ]);
   profiles = data.profiles || [];
   profilesSet = new Set(profiles);
   scores = data.profileScores || {};
@@ -837,11 +827,7 @@ async function startEval(targets?: string[]): Promise<void> {
     return;
   }
 
-  const cfg = (await chrome.storage.local.get(['aiKey', 'aiModel', 'formData'])) as unknown as {
-    aiKey?: string;
-    aiModel?: string;
-    formData?: { jd?: string; keywords?: string; booleanRule?: string };
-  };
+  const cfg = await getStorage(['aiKey', 'aiModel', 'formData']);
 
   const apiKey = (cfg.aiKey || '').trim();
   if (!apiKey) {
@@ -849,8 +835,8 @@ async function startEval(targets?: string[]): Promise<void> {
     return;
   }
 
-  const fd = cfg.formData || {};
-  const jd = (fd.jd || fd.keywords || fd.booleanRule || '').trim();
+  const fd = cfg.formData;
+  const jd = (fd?.jd || fd?.keywords || fd?.booleanRule || '').trim();
   if (!jd) {
     setEvalStatus('Add a job description or keywords in the left rail first.');
     return;
@@ -899,22 +885,20 @@ async function startScoring(targets?: string[]): Promise<void> {
     return;
   }
 
-  const cfg = (await chrome.storage.local.get('formData')) as unknown as {
-    formData?: { jd?: string; keywords?: string; booleanRule?: string; country?: string };
-  };
-  const fd = cfg.formData || {};
+  const cfg = await getStorage(['formData']);
+  const fd = cfg.formData;
 
   const keywords = getScoringKeywords({
-    manual: fd.keywords,
-    booleanRule: fd.booleanRule,
-    jd: fd.jd,
+    manual: fd?.keywords,
+    booleanRule: fd?.booleanRule,
+    jd: fd?.jd,
   });
   if (keywords.length === 0) {
     setEvalStatus('Add a job description, Boolean rule, or keywords in the left rail first.');
     return;
   }
 
-  const booleanRule = fd.booleanRule || '';
+  const booleanRule = fd?.booleanRule || '';
   if (booleanRule.trim()) {
     try {
       compileBooleanRule(booleanRule);
@@ -941,7 +925,7 @@ async function startScoring(targets?: string[]): Promise<void> {
   chrome.runtime.sendMessage(
     {
       type: MESSAGE.START_SCORING,
-      data: { profiles: urls, keywords, booleanRule, countryFilter: fd.country || '' },
+      data: { profiles: urls, keywords, booleanRule, countryFilter: fd?.country || '' },
     },
     (response?: { status?: string; error?: string }) => {
       if (!response || response.status !== 'started') {

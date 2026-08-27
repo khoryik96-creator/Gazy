@@ -14,6 +14,7 @@ import { buildCandidateCsv, buildCandidateSheet, exportFilename, } from '../shar
 import { buildXlsx } from '../shared/xlsx.js';
 import { serializeWorkspace, parseWorkspace, WORKSPACE_KEYS } from '../shared/workspaceBackup.js';
 import { scoreOutcome, aiOutcome, outcomeLabel } from '../shared/runReport.js';
+import { getStorage } from '../shared/storage.js';
 // Full-page dashboard. Reads the same chrome.storage.local data the popup
 // writes (profiles, profileScores, aiEvals, shortlist, folders) and shows it in
 // a roomy, sortable table. Views: All results / Shortlist / any named folder.
@@ -75,7 +76,7 @@ let sortDir = -1; // default: highest score first
 let lastScoreTargets = [];
 let lastEvalTargets = [];
 async function load() {
-    const data = (await chrome.storage.local.get([
+    const data = await getStorage([
         'profiles',
         'profileScores',
         'aiEvals',
@@ -86,7 +87,7 @@ async function load() {
         'usdToMyr',
         'lastRemoved',
         'uiTheme',
-    ]));
+    ]);
     profiles = data.profiles || [];
     profilesSet = new Set(profiles);
     scores = data.profileScores || {};
@@ -722,14 +723,14 @@ async function startEval(targets) {
         setEvalStatus('No candidates to evaluate.');
         return;
     }
-    const cfg = (await chrome.storage.local.get(['aiKey', 'aiModel', 'formData']));
+    const cfg = await getStorage(['aiKey', 'aiModel', 'formData']);
     const apiKey = (cfg.aiKey || '').trim();
     if (!apiKey) {
         setEvalStatus('Add your DeepSeek API key in Settings (left rail) first.');
         return;
     }
-    const fd = cfg.formData || {};
-    const jd = (fd.jd || fd.keywords || fd.booleanRule || '').trim();
+    const fd = cfg.formData;
+    const jd = (fd?.jd || fd?.keywords || fd?.booleanRule || '').trim();
     if (!jd) {
         setEvalStatus('Add a job description or keywords in the left rail first.');
         return;
@@ -764,18 +765,18 @@ async function startScoring(targets) {
         setEvalStatus('No candidates to score.');
         return;
     }
-    const cfg = (await chrome.storage.local.get('formData'));
-    const fd = cfg.formData || {};
+    const cfg = await getStorage(['formData']);
+    const fd = cfg.formData;
     const keywords = getScoringKeywords({
-        manual: fd.keywords,
-        booleanRule: fd.booleanRule,
-        jd: fd.jd,
+        manual: fd?.keywords,
+        booleanRule: fd?.booleanRule,
+        jd: fd?.jd,
     });
     if (keywords.length === 0) {
         setEvalStatus('Add a job description, Boolean rule, or keywords in the left rail first.');
         return;
     }
-    const booleanRule = fd.booleanRule || '';
+    const booleanRule = fd?.booleanRule || '';
     if (booleanRule.trim()) {
         try {
             compileBooleanRule(booleanRule);
@@ -796,7 +797,7 @@ async function startScoring(targets) {
     setEvalStatus('⭐ Scoring ' + urls.length + ' candidate(s)…');
     chrome.runtime.sendMessage({
         type: MESSAGE.START_SCORING,
-        data: { profiles: urls, keywords, booleanRule, countryFilter: fd.country || '' },
+        data: { profiles: urls, keywords, booleanRule, countryFilter: fd?.country || '' },
     }, (response) => {
         if (!response || response.status !== 'started') {
             setRunning(false);
