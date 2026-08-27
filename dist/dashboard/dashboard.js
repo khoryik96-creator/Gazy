@@ -13,6 +13,7 @@ import { largeRunWarning } from '../shared/runGuard.js';
 import { buildCandidateCsv, buildCandidateSheet, exportFilename, } from '../shared/candidateExport.js';
 import { buildXlsx } from '../shared/xlsx.js';
 import { serializeWorkspace, parseWorkspace, WORKSPACE_KEYS } from '../shared/workspaceBackup.js';
+import { scoreOutcome, aiOutcome, outcomeLabel } from '../shared/runReport.js';
 // Full-page dashboard. Reads the same chrome.storage.local data the popup
 // writes (profiles, profileScores, aiEvals, shortlist, folders) and shows it in
 // a roomy, sortable table. Views: All results / Shortlist / any named folder.
@@ -69,6 +70,10 @@ let lastSelUrl = null;
 let view = { kind: 'all' };
 let sortKey = 'kw';
 let sortDir = -1; // default: highest score first
+// The URLs the last run was launched against, so completion can report an
+// accurate "N done · M failed" over exactly that set.
+let lastScoreTargets = [];
+let lastEvalTargets = [];
 async function load() {
     const data = (await chrome.storage.local.get([
         'profiles',
@@ -165,6 +170,7 @@ function render() {
         chk.type = 'checkbox';
         chk.className = 'selchk';
         chk.checked = selected.has(r.url);
+        chk.setAttribute('aria-label', 'Select ' + r.name);
         // Use click (not change) so we can read Shift/Ctrl. Shift-click selects the
         // range from the last-clicked row to this one (in current view order);
         // plain/Ctrl click toggles just this row. `chk.checked` is the post-click state.
@@ -195,7 +201,9 @@ function render() {
         const star = document.createElement('button');
         star.className = 'star' + (r.shortlisted ? ' on' : '');
         star.textContent = r.shortlisted ? '⭐' : '☆';
-        star.title = r.shortlisted ? 'Remove from shortlist' : 'Add to shortlist';
+        star.title = (r.shortlisted ? 'Remove from shortlist' : 'Add to shortlist') + ': ' + r.name;
+        star.setAttribute('aria-label', star.title);
+        star.setAttribute('aria-pressed', String(r.shortlisted));
         star.addEventListener('click', () => void toggleStar(r.url));
         starTd.appendChild(star);
         tr.appendChild(starTd);
@@ -268,6 +276,7 @@ function buildFolderCell(r) {
     btn.className = 'fld-add';
     btn.textContent = '🏷';
     btn.title = 'Assign to folders';
+    btn.setAttribute('aria-label', 'Assign ' + r.name + ' to folders');
     btn.addEventListener('click', () => openFolderMenu({
         anchor: btn,
         url: r.url,
@@ -734,6 +743,7 @@ async function startEval(targets) {
         ') for AI evaluation?\n\nThis uses your API key and sends profile text to DeepSeek.')) {
         return;
     }
+    lastEvalTargets = urls;
     setRunning(true);
     setEvalStatus('✦ Evaluating ' + urls.length + ' candidate(s)…');
     chrome.runtime.sendMessage({ type: MESSAGE.AI_EVALUATE, data: { profiles: urls, jd, apiKey, model } }, (response) => {
@@ -781,6 +791,7 @@ async function startScoring(targets) {
         ' candidate(s)? This visits each LinkedIn profile in the background to scrape and score it.')) {
         return;
     }
+    lastScoreTargets = urls;
     setRunning(true);
     setEvalStatus('⭐ Scoring ' + urls.length + ' candidate(s)…');
     chrome.runtime.sendMessage({
@@ -804,7 +815,10 @@ chrome.runtime.onMessage.addListener((msg) => {
     }
     else if (msg.type === MESSAGE.AI_EVAL_COMPLETE) {
         setRunning(false);
-        setEvalStatus('✦ AI evaluation complete.');
+        // Report over exactly the run's targets (if we launched it), else generic.
+        const evals = msg.results ?? aiEvals;
+        const o = aiOutcome(lastEvalTargets, evals);
+        setEvalStatus(o.total > 0 ? outcomeLabel('✦', 'Evaluated', o) : '✦ AI evaluation complete.');
     }
     else if (msg.type === MESSAGE.SCORING_PROGRESS) {
         setRunning(true);
@@ -812,7 +826,8 @@ chrome.runtime.onMessage.addListener((msg) => {
     }
     else if (msg.type === MESSAGE.SCORING_COMPLETE) {
         setRunning(false);
-        setEvalStatus('⭐ Scoring complete.');
+        const o = scoreOutcome(lastScoreTargets.length, msg.failedCount ?? 0);
+        setEvalStatus(o.total > 0 ? outcomeLabel('⭐', 'Scored', o) : '⭐ Scoring complete.');
     }
 });
 // Stay in sync when the popup (or another dashboard tab) changes the data.

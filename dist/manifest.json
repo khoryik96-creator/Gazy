@@ -22,6 +22,15 @@
     "service_worker": "background/index.js",
     "type": "module"
   },
+  "commands": {
+    "open-dashboard": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+G",
+        "mac": "Command+Shift+G"
+      },
+      "description": "Open the Gazy dashboard"
+    }
+  },
   "content_scripts": [
     {
       "matches": ["https://www.linkedin.com/search/results/people/*"],
