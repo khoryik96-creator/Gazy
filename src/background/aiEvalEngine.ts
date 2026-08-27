@@ -2,6 +2,7 @@ import { MESSAGE } from '../shared/constants.js';
 import { fetchProfileData } from './profileFetcher.js';
 import { evaluateProfile } from './deepseek.js';
 import { normalizeAiUsage, addUsage, type AiUsage } from '../shared/aiCost.js';
+import { getStorage } from '../shared/storage.js';
 import type { AiEvalEntry, AiEvalMap, AiEvalRequest } from '../shared/types.js';
 
 let running = false;
@@ -38,10 +39,7 @@ export function stopAiEval(): void {
 async function runAiEvalLoop(req: AiEvalRequest): Promise<void> {
   // Start from any AI evals + cost usage already saved, so evaluating a subset
   // (e.g. from the dashboard) merges rather than wipes the rest.
-  const stored = (await chrome.storage.local.get(['aiEvals', 'aiUsage'])) as unknown as {
-    aiEvals?: AiEvalMap;
-    aiUsage?: unknown;
-  };
+  const stored = await getStorage(['aiEvals', 'aiUsage']);
   const results: AiEvalMap = { ...(stored.aiEvals || {}) };
   let usage: AiUsage = normalizeAiUsage(stored.aiUsage);
   const total = req.profiles.length;

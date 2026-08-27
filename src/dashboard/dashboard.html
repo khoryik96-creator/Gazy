@@ -153,6 +153,21 @@
             🗑 Delete folder
           </button>
           <button
+            id="backupBtn"
+            class="tbtn ghost"
+            title="Download a JSON backup of your folders, shortlist, scores, and settings (not your API key)"
+          >
+            💾 Backup
+          </button>
+          <button
+            id="restoreBtn"
+            class="tbtn ghost"
+            title="Restore a workspace from a Gazy backup file (replaces current data)"
+          >
+            ⟳ Restore
+          </button>
+          <input id="restoreFile" type="file" accept="application/json,.json" hidden />
+          <button
             id="clearAllBtn"
             class="tbtn ghost danger-ghost"
             title="Clears unsaved results. Candidates in a folder or on the shortlist are kept."
@@ -191,7 +206,14 @@
           <table id="tbl">
             <thead>
               <tr>
-                <th class="sel-col"><input type="checkbox" id="selectAll" title="Select all" /></th>
+                <th class="sel-col">
+                  <input
+                    type="checkbox"
+                    id="selectAll"
+                    title="Select all"
+                    aria-label="Select all candidates"
+                  />
+                </th>
                 <th class="star-col"></th>
                 <th data-sort="name">Candidate</th>
                 <th data-sort="kw" class="num">Score</th>

@@ -102,6 +102,14 @@ test('dashboard renders seeded candidates, sorts, switches views, and selects in
     await expect(page.locator('#bulkBar')).toBeVisible();
     await expect(page.locator('#bulkCount')).toHaveText('3 selected');
 
+    // Incremental selection repaint: clearing then toggling one row updates just
+    // that row's highlight + the count, without a full rebuild.
+    await page.locator('#selectAll').click(); // clear
+    await expect(page.locator('#bulkBar')).toBeHidden();
+    await page.locator('#tbody tr').first().locator('.selchk').click();
+    await expect(page.locator('#tbody tr.sel')).toHaveCount(1);
+    await expect(page.locator('#bulkCount')).toHaveText('1 selected');
+
     // "Retry failed" stays hidden when nothing failed...
     await expect(page.locator('#retryFailedBtn')).toBeHidden();
     // ...and appears (with a count) once a candidate has a failed scrape.
@@ -118,6 +126,40 @@ test('dashboard renders seeded candidates, sorts, switches views, and selects in
     await expect(page.locator('#retryFailedBtn')).toContainText('Retry failed (1)');
 
     expect(errors, `dashboard threw: ${errors.join('; ')}`).toEqual([]);
+  } finally {
+    await context.close();
+  }
+});
+
+test('workspace backup downloads valid JSON that excludes the API key', async () => {
+  const context = await launchWithExtension();
+  try {
+    const id = await extensionId(context);
+    const page = await context.newPage();
+    await page.goto(`chrome-extension://${id}/dashboard/dashboard.html`);
+
+    // Seed some data plus a secret key that must NOT end up in the backup.
+    await page.evaluate(
+      (seed) => chrome.storage.local.set({ ...seed, aiKey: 'sk-secret-should-not-export' }),
+      SEED,
+    );
+    await expect(page.locator('#tbody tr')).toHaveCount(3);
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.locator('#backupBtn').click(),
+    ]);
+    expect(download.suggestedFilename()).toMatch(/^gazy-workspace-\d{4}-\d{2}-\d{2}\.json$/);
+
+    const stream = await download.createReadStream();
+    const chunks = [];
+    for await (const c of stream) chunks.push(c);
+    const text = Buffer.concat(chunks).toString('utf8');
+
+    const parsed = JSON.parse(text);
+    expect(parsed.format).toBe('gazy-workspace');
+    expect(parsed.data.profiles).toHaveLength(3);
+    expect(text).not.toContain('sk-secret-should-not-export'); // key never exported
   } finally {
     await context.close();
   }

@@ -6,7 +6,8 @@ import { clampScanPages } from '../shared/pagination.js';
 import { DEFAULT_SCAN_PAGES, MAX_SCAN_PAGES } from '../shared/constants.js';
 import { COUNTRIES, canonicalCountry } from '../shared/countries.js';
 import { readJdFile } from './fileImport.js';
-import type { AiModel, Template } from '../shared/types.js';
+import { getStorage } from '../shared/storage.js';
+import type { AiModel } from '../shared/types.js';
 
 // The dashboard's left rail (Option A "Sidebar Console"). It owns the search
 // criteria, templates, and settings — persisting to the SAME storage keys the
@@ -17,7 +18,6 @@ import type { AiModel, Template } from '../shared/types.js';
 
 const FAST: AiModel = 'deepseek-chat';
 const SMART: AiModel = 'deepseek-reasoner';
-type TemplateMap = Record<string, Template>;
 
 const el = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 
@@ -210,9 +210,7 @@ export function initSidebar(): void {
 
   // ---- Templates (same `templates` storage as the popup) ----
   const loadTemplateDropdown = async (): Promise<void> => {
-    const { templates = {} } = (await chrome.storage.local.get('templates')) as unknown as {
-      templates?: TemplateMap;
-    };
+    const { templates = {} } = await getStorage(['templates']);
     templateSelect.innerHTML = '<option value="">— Load template —</option>';
     for (const name in templates) {
       const opt = document.createElement('option');
@@ -225,9 +223,7 @@ export function initSidebar(): void {
     void (async () => {
       const name = window.prompt('Template name:', templateSelect.value || '')?.trim();
       if (!name) return;
-      const { templates = {} } = (await chrome.storage.local.get('templates')) as unknown as {
-        templates?: TemplateMap;
-      };
+      const { templates = {} } = await getStorage(['templates']);
       if (templates[name] && !window.confirm('Overwrite template “' + name + '”?')) return;
       templates[name] = {
         jd: jd.value,
@@ -245,9 +241,7 @@ export function initSidebar(): void {
     void (async () => {
       const name = templateSelect.value;
       if (!name) return;
-      const { templates = {} } = (await chrome.storage.local.get('templates')) as unknown as {
-        templates?: TemplateMap;
-      };
+      const { templates = {} } = await getStorage(['templates']);
       const t = templates[name];
       if (!t) return;
       jd.value = t.jd || '';
@@ -262,9 +256,7 @@ export function initSidebar(): void {
     void (async () => {
       const name = templateSelect.value;
       if (!name || !window.confirm('Delete template “' + name + '”?')) return;
-      const { templates = {} } = (await chrome.storage.local.get('templates')) as unknown as {
-        templates?: TemplateMap;
-      };
+      const { templates = {} } = await getStorage(['templates']);
       delete templates[name];
       await chrome.storage.local.set({ templates });
       await loadTemplateDropdown();
@@ -274,19 +266,7 @@ export function initSidebar(): void {
 
   // ---- Initial load of persisted values ----
   void (async () => {
-    const data = (await chrome.storage.local.get([
-      'formData',
-      'aiKey',
-      'aiModel',
-      'uiTheme',
-      'scanPages',
-    ])) as unknown as {
-      formData?: Template;
-      aiKey?: string;
-      aiModel?: AiModel;
-      uiTheme?: string;
-      scanPages?: number;
-    };
+    const data = await getStorage(['formData', 'aiKey', 'aiModel', 'uiTheme', 'scanPages']);
     const fd = data.formData;
     if (fd) {
       jd.value = fd.jd || '';

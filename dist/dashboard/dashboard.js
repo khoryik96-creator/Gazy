@@ -12,6 +12,9 @@ import { compileBooleanRule } from '../shared/booleanExpression.js';
 import { largeRunWarning } from '../shared/runGuard.js';
 import { buildCandidateCsv, buildCandidateSheet, exportFilename, } from '../shared/candidateExport.js';
 import { buildXlsx } from '../shared/xlsx.js';
+import { serializeWorkspace, parseWorkspace, WORKSPACE_KEYS } from '../shared/workspaceBackup.js';
+import { scoreOutcome, aiOutcome, outcomeLabel } from '../shared/runReport.js';
+import { getStorage } from '../shared/storage.js';
 // Full-page dashboard. Reads the same chrome.storage.local data the popup
 // writes (profiles, profileScores, aiEvals, shortlist, folders) and shows it in
 // a roomy, sortable table. Views: All results / Shortlist / any named folder.
@@ -28,6 +31,9 @@ const stopBtn = el('stopBtn');
 const retryFailedBtn = el('retryFailedBtn');
 const exportBtn = el('exportBtn');
 const exportXlsxBtn = el('exportXlsxBtn');
+const backupBtn = el('backupBtn');
+const restoreBtn = el('restoreBtn');
+const restoreFile = el('restoreFile');
 const clearAllBtn = el('clearAllBtn');
 const undoBtn = el('undoBtn');
 const evalStatusEl = el('evalStatus');
@@ -62,11 +68,20 @@ let lastRemoved = null;
 let selected = new Set();
 // Anchor for Shift-click range selection: the URL of the last row clicked.
 let lastSelUrl = null;
+// The rows currently rendered + live references to each row's <tr>/checkbox, so a
+// selection toggle can repaint just the affected rows instead of rebuilding the
+// whole table (which, at hundreds of rows, made every checkbox click laggy).
+let currentRows = [];
+const rowEls = new Map();
 let view = { kind: 'all' };
 let sortKey = 'kw';
 let sortDir = -1; // default: highest score first
+// The URLs the last run was launched against, so completion can report an
+// accurate "N done · M failed" over exactly that set.
+let lastScoreTargets = [];
+let lastEvalTargets = [];
 async function load() {
-    const data = (await chrome.storage.local.get([
+    const data = await getStorage([
         'profiles',
         'profileScores',
         'aiEvals',
@@ -77,7 +92,7 @@ async function load() {
         'usdToMyr',
         'lastRemoved',
         'uiTheme',
-    ]));
+    ]);
     profiles = data.profiles || [];
     profilesSet = new Set(profiles);
     scores = data.profileScores || {};
@@ -151,7 +166,9 @@ function render() {
         if (!present.has(u))
             selected.delete(u);
     tbody.replaceChildren();
+    rowEls.clear();
     const viewRows = rows; // captured for range selection at click time
+    currentRows = rows; // for incremental selection repaint (refreshSelectionUI)
     viewRows.forEach((r, idx) => {
         const tr = document.createElement('tr');
         if (selected.has(r.url))
@@ -161,6 +178,7 @@ function render() {
         chk.type = 'checkbox';
         chk.className = 'selchk';
         chk.checked = selected.has(r.url);
+        chk.setAttribute('aria-label', 'Select ' + r.name);
         // Use click (not change) so we can read Shift/Ctrl. Shift-click selects the
         // range from the last-clicked row to this one (in current view order);
         // plain/Ctrl click toggles just this row. `chk.checked` is the post-click state.
@@ -183,15 +201,18 @@ function render() {
                 selected.delete(r.url);
             }
             lastSelUrl = r.url;
-            render();
+            refreshSelectionUI(); // selection-only change → repaint rows, don't rebuild
         });
         selTd.appendChild(chk);
         tr.appendChild(selTd);
+        rowEls.set(r.url, { tr, chk });
         const starTd = document.createElement('td');
         const star = document.createElement('button');
         star.className = 'star' + (r.shortlisted ? ' on' : '');
         star.textContent = r.shortlisted ? '⭐' : '☆';
-        star.title = r.shortlisted ? 'Remove from shortlist' : 'Add to shortlist';
+        star.title = (r.shortlisted ? 'Remove from shortlist' : 'Add to shortlist') + ': ' + r.name;
+        star.setAttribute('aria-label', star.title);
+        star.setAttribute('aria-pressed', String(r.shortlisted));
         star.addEventListener('click', () => void toggleStar(r.url));
         starTd.appendChild(star);
         tr.appendChild(starTd);
@@ -249,6 +270,18 @@ function syncSelectionUI(rows) {
     bulkBar.style.display = n > 0 ? '' : 'none';
     bulkCountEl.textContent = n + ' selected';
 }
+// Repaint selection state (row highlight + checkbox) on the already-rendered rows
+// and refresh the header/bulk-bar — without rebuilding the table. Used for
+// selection-only changes (row toggle, select-all, clear), which don't change the
+// row set. Data changes still go through the full render().
+function refreshSelectionUI() {
+    for (const [url, { tr, chk }] of rowEls) {
+        const on = selected.has(url);
+        tr.classList.toggle('sel', on);
+        chk.checked = on;
+    }
+    syncSelectionUI(currentRows);
+}
 // One cell per candidate: the folders it belongs to as pills, plus a 🏷 button
 // opening the assign popover.
 function buildFolderCell(r) {
@@ -264,6 +297,7 @@ function buildFolderCell(r) {
     btn.className = 'fld-add';
     btn.textContent = '🏷';
     btn.title = 'Assign to folders';
+    btn.setAttribute('aria-label', 'Assign ' + r.name + ' to folders');
     btn.addEventListener('click', () => openFolderMenu({
         anchor: btn,
         url: r.url,
@@ -408,6 +442,47 @@ function exportXlsx() {
     URL.revokeObjectURL(a.href);
     setEvalStatus('⬇ Exported ' + rows.length + ' candidate(s) to Excel from “' + viewScopeName() + '”.');
 }
+// Download a JSON backup of the whole workspace (folders, shortlist, scores, AI
+// evals, templates, settings) — everything except the secret API key. Restores
+// on any machine via the Restore button.
+async function backupWorkspace() {
+    const stored = await chrome.storage.local.get([...WORKSPACE_KEYS]);
+    const appVersion = chrome.runtime.getManifest().version;
+    const json = serializeWorkspace(stored, appVersion);
+    const blob = new Blob([json], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.download = 'gazy-workspace-' + stamp + '.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setEvalStatus('💾 Backed up your workspace.');
+}
+// Restore a workspace from a chosen backup file. Replaces the current data for
+// the keys present in the file (a confirm guards the overwrite); the API key and
+// any unknown keys are ignored by parseWorkspace.
+async function restoreWorkspaceFromFile(file) {
+    let parsed;
+    try {
+        parsed = parseWorkspace(await file.text());
+    }
+    catch (e) {
+        setEvalStatus('❌ ' + e.message);
+        return;
+    }
+    if (parsed.keyCount === 0) {
+        setEvalStatus('That backup had no workspace data to restore.');
+        return;
+    }
+    const when = parsed.exportedAt ? ' (from ' + parsed.exportedAt.slice(0, 10) + ')' : '';
+    if (!confirm('Restore this backup' +
+        when +
+        '?\nThis REPLACES your current folders, shortlist, scores, and settings with the file’s.')) {
+        return;
+    }
+    await chrome.storage.local.set(parsed.data);
+    setEvalStatus('⟳ Restored your workspace from the backup.');
+}
 function initHeaderSort() {
     document.querySelectorAll('th[data-sort]').forEach((th) => {
         th.addEventListener('click', () => {
@@ -429,7 +504,7 @@ function toggleSelectAll() {
         urls.forEach((u) => selected.add(u));
     else
         urls.forEach((u) => selected.delete(u));
-    render();
+    refreshSelectionUI(); // selection-only change
 }
 async function bulkSetShortlist(add) {
     if (selected.size === 0)
@@ -475,7 +550,7 @@ async function applyBulkFolder(rawName, create) {
 }
 function clearSelection() {
     selected = new Set();
-    render();
+    refreshSelectionUI(); // selection-only change
 }
 // ---- Remove candidates (view-aware) ----
 //
@@ -599,6 +674,14 @@ renameFolderBtn.addEventListener('click', () => void renameActiveFolder());
 deleteFolderBtn.addEventListener('click', () => void deleteActiveFolder());
 exportBtn.addEventListener('click', exportCsv);
 exportXlsxBtn.addEventListener('click', exportXlsx);
+backupBtn.addEventListener('click', () => void backupWorkspace());
+restoreBtn.addEventListener('click', () => restoreFile.click());
+restoreFile.addEventListener('change', () => {
+    const file = restoreFile.files?.[0];
+    if (file)
+        void restoreWorkspaceFromFile(file);
+    restoreFile.value = ''; // allow re-selecting the same file later
+});
 clearAllBtn.addEventListener('click', () => void clearAll());
 undoBtn.addEventListener('click', () => void undoRemoval());
 stopBtn.addEventListener('click', stopRuns);
@@ -660,14 +743,14 @@ async function startEval(targets) {
         setEvalStatus('No candidates to evaluate.');
         return;
     }
-    const cfg = (await chrome.storage.local.get(['aiKey', 'aiModel', 'formData']));
+    const cfg = await getStorage(['aiKey', 'aiModel', 'formData']);
     const apiKey = (cfg.aiKey || '').trim();
     if (!apiKey) {
         setEvalStatus('Add your DeepSeek API key in Settings (left rail) first.');
         return;
     }
-    const fd = cfg.formData || {};
-    const jd = (fd.jd || fd.keywords || fd.booleanRule || '').trim();
+    const fd = cfg.formData;
+    const jd = (fd?.jd || fd?.keywords || fd?.booleanRule || '').trim();
     if (!jd) {
         setEvalStatus('Add a job description or keywords in the left rail first.');
         return;
@@ -681,6 +764,7 @@ async function startEval(targets) {
         ') for AI evaluation?\n\nThis uses your API key and sends profile text to DeepSeek.')) {
         return;
     }
+    lastEvalTargets = urls;
     setRunning(true);
     setEvalStatus('✦ Evaluating ' + urls.length + ' candidate(s)…');
     chrome.runtime.sendMessage({ type: MESSAGE.AI_EVALUATE, data: { profiles: urls, jd, apiKey, model } }, (response) => {
@@ -701,18 +785,18 @@ async function startScoring(targets) {
         setEvalStatus('No candidates to score.');
         return;
     }
-    const cfg = (await chrome.storage.local.get('formData'));
-    const fd = cfg.formData || {};
+    const cfg = await getStorage(['formData']);
+    const fd = cfg.formData;
     const keywords = getScoringKeywords({
-        manual: fd.keywords,
-        booleanRule: fd.booleanRule,
-        jd: fd.jd,
+        manual: fd?.keywords,
+        booleanRule: fd?.booleanRule,
+        jd: fd?.jd,
     });
     if (keywords.length === 0) {
         setEvalStatus('Add a job description, Boolean rule, or keywords in the left rail first.');
         return;
     }
-    const booleanRule = fd.booleanRule || '';
+    const booleanRule = fd?.booleanRule || '';
     if (booleanRule.trim()) {
         try {
             compileBooleanRule(booleanRule);
@@ -728,11 +812,12 @@ async function startScoring(targets) {
         ' candidate(s)? This visits each LinkedIn profile in the background to scrape and score it.')) {
         return;
     }
+    lastScoreTargets = urls;
     setRunning(true);
     setEvalStatus('⭐ Scoring ' + urls.length + ' candidate(s)…');
     chrome.runtime.sendMessage({
         type: MESSAGE.START_SCORING,
-        data: { profiles: urls, keywords, booleanRule, countryFilter: fd.country || '' },
+        data: { profiles: urls, keywords, booleanRule, countryFilter: fd?.country || '' },
     }, (response) => {
         if (!response || response.status !== 'started') {
             setRunning(false);
@@ -751,7 +836,10 @@ chrome.runtime.onMessage.addListener((msg) => {
     }
     else if (msg.type === MESSAGE.AI_EVAL_COMPLETE) {
         setRunning(false);
-        setEvalStatus('✦ AI evaluation complete.');
+        // Report over exactly the run's targets (if we launched it), else generic.
+        const evals = msg.results ?? aiEvals;
+        const o = aiOutcome(lastEvalTargets, evals);
+        setEvalStatus(o.total > 0 ? outcomeLabel('✦', 'Evaluated', o) : '✦ AI evaluation complete.');
     }
     else if (msg.type === MESSAGE.SCORING_PROGRESS) {
         setRunning(true);
@@ -759,7 +847,8 @@ chrome.runtime.onMessage.addListener((msg) => {
     }
     else if (msg.type === MESSAGE.SCORING_COMPLETE) {
         setRunning(false);
-        setEvalStatus('⭐ Scoring complete.');
+        const o = scoreOutcome(lastScoreTargets.length, msg.failedCount ?? 0);
+        setEvalStatus(o.total > 0 ? outcomeLabel('⭐', 'Scored', o) : '⭐ Scoring complete.');
     }
 });
 // Stay in sync when the popup (or another dashboard tab) changes the data.

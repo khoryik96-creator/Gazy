@@ -22,6 +22,20 @@ export interface ScoreEntry {
 /** The scores map persisted to storage and passed in progress messages. */
 export type ScoresMap = Record<string, ScoreEntry>;
 
+/**
+ * Snapshot of the most recent candidate removal, persisted to storage under
+ * `lastRemoved` so a one-level Undo survives a reload. The removal/undo transforms
+ * live in dashboard/removal.ts; the shape lives here so it can type storage.
+ */
+export interface RemovedSnapshot {
+  urls: string[];
+  scores: ScoresMap;
+  aiEvals: AiEvalMap;
+  shortlisted: string[];
+  folders: Record<string, string[]>; // folder name → removed urls that were in it
+  count?: number; // how many candidates the removal affected (for the Undo label)
+}
+
 /** Payload sent from the popup to kick off a scoring run. */
 export interface ScoringRequest {
   profiles: string[];
