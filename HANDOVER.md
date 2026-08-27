@@ -1,9 +1,11 @@
-# Handover — remaining work
+# Handover — status & next steps
 
-Prepared 2026-08-26 by session `claude/chrome-extension-architecture-cj7pul`
-for the next account/agent to pick up. Current shipped version: **v1.28.0**
-(on `main`). Read `COLLAB_NOTES.md` (protocol + status log) and
-`ARCHITECTURE.md` (module map) before starting.
+Prepared by session `claude/chrome-extension-architecture-cj7pul`.
+Current shipped version: **v1.29.1** (on `main`). Read `COLLAB_NOTES.md`
+(protocol + full status log) and `ARCHITECTURE.md` (module map) before starting.
+
+**The improvement backlog (A–E) is fully cleared** — see "Completed" below.
+What remains needs the **owner**, not code.
 
 ## Ground rules (from the owner, non-negotiable)
 
@@ -31,91 +33,56 @@ npm run test:e2e               # Playwright; locally set PW_CHROMIUM_PATH to a
                                # /opt/pw-browsers/chromium-*/chrome-linux/chrome
 ```
 
-## 0. Open loose end (needs the OWNER, not code)
+## Open items (need the OWNER, not code)
 
-**GitHub Actions isn't auto-running on `main` pushes since the repo went
-public.** Code is green locally, but no CI run is created for merges. Fix is a
-one-time owner toggle: **Settings → Actions → General → "Allow all actions and
-reusable workflows"**, and check the Actions tab for an "enable" banner. No code
-change; just confirm CI turns green afterward.
+1. **Chrome Web Store submission.** The code, privacy policy, listing copy, and
+   the publishing checklist are all ready — see `PRIVACY.md`,
+   `docs/STORE_LISTING.md`, and `docs/PUBLISHING.md`. Owner steps: create a Web
+   Store developer account, **fill in the contact-email placeholder in
+   `PRIVACY.md`**, host that policy at a public URL, take 1–5 screenshots, tag a
+   release (`git tag vX.Y.Z && git push origin vX.Y.Z` → `release.yml` builds the
+   upload zip), and submit.
 
----
+2. **(If it recurs) CI on `main`.** Earlier, GitHub briefly stopped auto-running
+   Actions after the repo went public; it recovered and runs are green again. If
+   it ever stops creating runs on a push, the fix is a one-time toggle:
+   **Settings → Actions → General → "Allow all actions and reusable workflows"**.
 
-## Remaining improvement backlog (prioritised)
+## Completed (backlog A–E, all merged)
 
-Each item is independent and low-risk. Suggested order top-to-bottom.
+- **A. Workspace backup** (v1.29.0, PR #52) — `shared/workspaceBackup.ts` +
+  dashboard Backup/Restore. Excludes the API key. +7 tests, +1 e2e.
+- **B. A11y + keyboard shortcut + run report** (v1.29.0) — aria-labels +
+  `:focus-visible`; manifest `commands` open-dashboard (Ctrl/Cmd+Shift+G) via
+  `background/commands.ts`; `shared/runReport.ts` "Scored N · M failed". +4 tests.
+- **C. Web Store readiness** (docs) — `PRIVACY.md`, `docs/STORE_LISTING.md`,
+  `docs/PUBLISHING.md`.
+- **D. Typed storage** — `shared/storage.ts` (`StorageShape` + `getStorage`/
+  `setStorage`); removed every `as unknown as` storage cast; `RemovedSnapshot`
+  moved to `shared/types.ts`.
+- **E. Render efficiency** (v1.29.1) — selection toggles repaint only changed
+  rows (`refreshSelectionUI` + `rowEls`) instead of rebuilding the table.
 
-### A. Data safety — Export / Import workspace (JSON) ⭐ recommended next
+Earlier context: **v1.27.0** (PR #49) dashboard refactor into tested pure
+modules, scraper retry, and the release workflow; **v1.28.0** (PR #50) DeepSeek
+429/5xx retry, empty-page diagnostic, and the "Retry failed" button.
 
-**Why:** everything (folders, shortlist, scores, AI evals, settings) lives only
-in `chrome.storage.local`. A profile reset or reinstall wipes it with no backup.
-**What:** an "Export workspace" button that downloads a single JSON of the
-relevant storage keys (`profiles`, `profileScores`, `aiEvals`, `shortlist`,
-`folders`, `templates`, `aiPrices`, `usdToMyr`, `uiTheme`, `scanPages` — NOT
-`aiKey`), and an "Import" that validates + restores it.
-**Approach:** pure `shared/workspaceBackup.ts` — `serializeWorkspace(data)` and
-`parseWorkspace(json)` (tolerant validator, versioned envelope) with unit tests.
-Wire a button in the dashboard toolbar (reuse the export/download pattern in
-`dashboard.ts` `exportCsv`/`exportXlsx`). Import shows a confirm before
-overwriting. Est: ~half a day.
+## Where the code lives (quick map)
 
-### B. Interface & accessibility
+- Pure, unit-tested logic → `src/shared/` (rows/removal live in `src/dashboard/`
+  but are pure). Tests in `test/**.test.js` run against the built `dist/`.
+- Background service worker → `src/background/` (messaging, scoring/AI engines,
+  scraper, search session, commands).
+- UIs → `src/popup/` and `src/dashboard/` (the dashboard is the full workspace).
 
-**Why:** icon-only buttons (☆ star, 🏷 folder, row checkboxes) have no
-screen-reader labels; only a few aria/label signals exist. No keyboard shortcuts.
-**What:**
+Test suite: **134 unit tests + 4 e2e**, all green. Reuse the pure-module +
+unit-test pattern — it's what keeps edits from regressing.
 
-1. Add `aria-label`s to icon-only buttons and visible focus rings (CSS
-   `:focus-visible`) in `popup.css` / `dashboard.css`.
-2. Add manifest `commands` (e.g. open dashboard, focus search) — new
-   `background` handler for `chrome.commands.onCommand`.
-3. Post-run **run report**: after scoring/AI, show "N scored · M failed" with a
-   per-failure reason tooltip. The data is already in `profileScores`
-   (`success:false` + `debug`); a small pure summariser in `shared/` + a status
-   line in `dashboard.ts`.
+## Ideas for future work (not started, owner's call)
 
-**Approach:** mostly HTML/CSS + a pure summariser (testable). Est: ~1 day.
-
-### C. Chrome Web Store readiness (unblocks real distribution)
-
-**Why:** install is currently git-clone + Load Unpacked. The Web Store needs a
-privacy policy (mandatory — the tool reads LinkedIn and sends profile text to
-DeepSeek), listing copy, and screenshots. The release workflow
-(`.github/workflows/release.yml`) already produces the Web-Store-ready zip.
-**What:** draft `PRIVACY.md` (what's collected, that the DeepSeek key + all data
-stay device-local, what leaves the device and to whom), store description +
-screenshots, and a short publishing checklist in `docs/`. Note: some of this is
-owner action (creating the Web Store listing, paying the one-time fee).
-**Approach:** docs only, no code. Est: ~half a day to draft.
-
-### D. Code health — typed storage accessor
-
-**Why:** storage reads are littered with `as unknown as { ... }` casts (see
-`dashboard.ts` `load()`, `aiEvalEngine.ts`, `scoringEngine.ts`) — shape drift
-isn't caught.
-**What:** a tiny `shared/storage.ts` `getStorage<K>(keys)` typed against a
-central `StorageShape` interface, removing the casts. Pure-ish; migrate call
-sites incrementally. Est: ~half a day.
-
-### E. Dashboard render efficiency (future scale)
-
-**Why:** every checkbox click calls `render()`, which rebuilds the ENTIRE table.
-Fine at ~100 rows; laggy at 500+.
-**What:** incremental row updates (toggle a row's class instead of full rebuild),
-or virtualization if lists grow large. Lower priority until users hit big lists.
-Est: ~1 day.
-
----
-
-## What was just shipped (context for the above)
-
-- **v1.27.0** (PR #49): dashboard refactor into tested pure modules
-  (`dashboard/rows.ts`, `dashboard/removal.ts`), a Playwright dashboard e2e, the
-  scraper retry/backoff (`shared/retry.ts`), and the release workflow.
-- **v1.28.0** (PR #50): reliability bundle — DeepSeek 429/5xx retry in
-  `deepseek.ts`, empty-page diagnostic (`shared/pageDiagnostics.ts` +
-  `content/extractor.pageSignals()`), and the dashboard "↻ Retry failed" button
-  (`rows.failedScrapeUrls`).
-
-Test suite is at **123 unit tests + 3 e2e**, all green. Reuse the pure-module +
-unit-test pattern these established — it's what keeps edits from regressing.
+- Per-failure reason surfacing in the run report (tooltip from `profileScores`
+  `debug`).
+- "Test key" button for the DeepSeek key in settings.
+- Virtualised candidate table if lists ever grow into the thousands.
+- Broaden e2e coverage (folder assign/rename, restore round-trip, retry-failed
+  actually re-scoring).
