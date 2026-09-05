@@ -1,5 +1,5 @@
 import { normalizeUiTheme } from '../shared/themes.js';
-import { MESSAGE } from '../shared/constants.js';
+import { MESSAGE, STORAGE_RELOAD_DEBOUNCE_MS } from '../shared/constants.js';
 import {
   emptyFolderStore,
   normalizeFolderStore,
@@ -46,7 +46,12 @@ import {
   exportFilename,
 } from '../shared/candidateExport.js';
 import { buildXlsx } from '../shared/xlsx.js';
-import { serializeWorkspace, parseWorkspace, WORKSPACE_KEYS } from '../shared/workspaceBackup.js';
+import {
+  serializeWorkspace,
+  parseWorkspace,
+  keysToClearOnRestore,
+  WORKSPACE_KEYS,
+} from '../shared/workspaceBackup.js';
 import { scoreOutcome, aiOutcome, outcomeLabel } from '../shared/runReport.js';
 import { getStorage } from '../shared/storage.js';
 import type { FolderStore } from '../shared/folders.js';
@@ -530,9 +535,11 @@ async function backupWorkspace(): Promise<void> {
   setEvalStatus('💾 Backed up your workspace.');
 }
 
-// Restore a workspace from a chosen backup file. Replaces the current data for
-// the keys present in the file (a confirm guards the overwrite); the API key and
-// any unknown keys are ignored by parseWorkspace.
+// Restore a workspace from a chosen backup file. This REPLACES the workspace, as
+// the confirm says: keys the backup carries are written, and workspace keys it
+// does NOT carry are cleared — otherwise current data would survive alongside the
+// restored data. The API key isn't a workspace key, so it's left alone; the undo
+// snapshot is dropped because it refers to the pre-restore state.
 async function restoreWorkspaceFromFile(file: File): Promise<void> {
   let parsed;
   try {
@@ -555,6 +562,9 @@ async function restoreWorkspaceFromFile(file: File): Promise<void> {
   ) {
     return;
   }
+  // Clear the workspace keys the backup doesn't carry, plus the now-meaningless
+  // undo snapshot, so this is a true replace rather than a merge.
+  await chrome.storage.local.remove([...keysToClearOnRestore(parsed.data), 'lastRemoved']);
   await chrome.storage.local.set(parsed.data);
   setEvalStatus('⟳ Restored your workspace from the backup.');
 }
@@ -992,6 +1002,21 @@ chrome.runtime.onMessage.addListener(
 );
 
 // Stay in sync when the popup (or another dashboard tab) changes the data.
+// Reloading + re-rendering rebuilds the entire table (every row and its
+// listeners), so bursts of storage writes are coalesced into a single pass.
+// Without this, a write triggers a render on top of the explicit render() its own
+// action already did, and a scoring/AI run — which persists after every profile —
+// rebuilds the whole table once per candidate.
+let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+
+function queueReload(): void {
+  if (reloadTimer !== null) return; // a reload is already pending; it'll pick this up
+  reloadTimer = setTimeout(() => {
+    reloadTimer = null;
+    void load().then(render);
+  }, STORAGE_RELOAD_DEBOUNCE_MS);
+}
+
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
   if (
@@ -1006,7 +1031,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
     changes.lastRemoved ||
     changes.uiTheme
   ) {
-    void load().then(render);
+    queueReload();
   }
 });
 

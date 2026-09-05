@@ -3,6 +3,7 @@
 // directly (test/dashboardRows.test.js) and edits here can't silently regress
 // the table rendering that dashboard.ts wires up.
 import { scoreEntry } from '../shared/scoreView.js';
+import { nameFromUrl } from '../shared/nameFormat.js';
 import { foldersForUrl } from '../shared/folders.js';
 // Every candidate any view might show: the working results plus everything saved
 // to a folder or the shortlist (which can outlive the results list). Order is
@@ -54,7 +55,9 @@ export function buildRow(url, data) {
             aiLabel = '✨' + a.score + '%';
         }
     }
-    const name = url.split('/in/')[1]?.split('/')[0] || url;
+    // Use the shared formatter so the dashboard, the popup list, and CSV/Excel
+    // export all show the same readable name ("Sarah Chen", not "sarah-chen-8a1b").
+    const name = nameFromUrl(url);
     return {
         url,
         name,

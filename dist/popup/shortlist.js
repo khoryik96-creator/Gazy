@@ -19,11 +19,29 @@ export async function loadShortlist() {
     shortlisted.clear();
     (shortlist || []).forEach((u) => shortlisted.add(u));
 }
-/** Toggle a URL's shortlist membership and persist. */
+/**
+ * Toggle a URL's shortlist membership and persist.
+ *
+ * The in-memory Set is updated immediately so the caller can re-render at once,
+ * but the WRITE re-reads storage first and applies only this URL's change. The
+ * popup loads the shortlist when it opens and never re-syncs, so the dashboard
+ * (or another popup) may have starred/unstarred other candidates since — writing
+ * our whole stale snapshot would silently revert those.
+ */
 export function toggleShortlist(url) {
-    if (shortlisted.has(url))
-        shortlisted.delete(url);
-    else
+    const turningOn = !shortlisted.has(url);
+    if (turningOn)
         shortlisted.add(url);
-    void setStorage({ shortlist: [...shortlisted] });
+    else
+        shortlisted.delete(url);
+    void persistToggle(url, turningOn);
+}
+async function persistToggle(url, on) {
+    const { shortlist } = (await getStorage(['shortlist']));
+    const current = new Set(shortlist || []);
+    if (on)
+        current.add(url);
+    else
+        current.delete(url);
+    await setStorage({ shortlist: [...current] });
 }

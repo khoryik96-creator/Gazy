@@ -4,6 +4,7 @@
 // the table rendering that dashboard.ts wires up.
 
 import { scoreEntry } from '../shared/scoreView.js';
+import { nameFromUrl } from '../shared/nameFormat.js';
 import { foldersForUrl } from '../shared/folders.js';
 import type { FolderStore } from '../shared/folders.js';
 import type { ScoresMap, AiEvalMap } from '../shared/types.js';
@@ -95,7 +96,9 @@ export function buildRow(url: string, data: RowData): Row {
     }
   }
 
-  const name = url.split('/in/')[1]?.split('/')[0] || url;
+  // Use the shared formatter so the dashboard, the popup list, and CSV/Excel
+  // export all show the same readable name ("Sarah Chen", not "sarah-chen-8a1b").
+  const name = nameFromUrl(url);
   return {
     url,
     name,

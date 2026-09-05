@@ -74,18 +74,18 @@ test('dashboard renders seeded candidates, sorts, switches views, and selects in
     await expect(rows).toHaveCount(3);
 
     // Default sort is keyword score, highest first → Alice (80) is row 1.
-    await expect(rows.first().locator('.cand-link')).toHaveText('alice');
+    await expect(rows.first().locator('.cand-link')).toHaveText('Alice');
 
     // Clicking the Score header flips direction → lowest first → Bob (40) top.
     await page.locator('th[data-sort="kw"]').click();
-    await expect(rows.first().locator('.cand-link')).toHaveText('bob');
+    await expect(rows.first().locator('.cand-link')).toHaveText('Bob');
     // A direction arrow is now shown on that header.
     await expect(page.locator('th[data-sort="kw"]')).toContainText(/[▲▼]/);
 
     // Shortlist tab shows only the one starred candidate (Bob).
     await page.locator('#tabShort').click();
     await expect(page.locator('#tbody tr')).toHaveCount(1);
-    await expect(page.locator('#tbody tr .cand-link')).toHaveText('bob');
+    await expect(page.locator('#tbody tr .cand-link')).toHaveText('Bob');
 
     // The seeded folder chip appears and filters to its one member (Carol).
     await page.locator('#tabAll').click();
@@ -93,7 +93,7 @@ test('dashboard renders seeded candidates, sorts, switches views, and selects in
     await expect(folderChip).toHaveCount(1);
     await folderChip.click();
     await expect(page.locator('#tbody tr')).toHaveCount(1);
-    await expect(page.locator('#tbody tr .cand-link')).toHaveText('carol');
+    await expect(page.locator('#tbody tr .cand-link')).toHaveText('Carol');
 
     // Bulk selection: select-all reveals the bulk action bar with the count.
     await page.locator('#tabAll').click();
