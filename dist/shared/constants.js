@@ -8,7 +8,6 @@ export const MESSAGE = {
     SCORING_COMPLETE: 'SCORING_COMPLETE',
     PROFILES_FOUND: 'PROFILES_FOUND',
     EXTRACTION_ERROR: 'EXTRACTION_ERROR',
-    EXTRACT_NOW: 'EXTRACT_NOW',
     AI_EVALUATE: 'AI_EVALUATE',
     STOP_AI_EVAL: 'STOP_AI_EVAL',
     AI_EVAL_PROGRESS: 'AI_EVAL_PROGRESS',
@@ -38,6 +37,10 @@ export const RETRY_DELAY_MIN_MS = 3000; // min backoff before retrying thin cont
 export const RETRY_DELAY_MAX_MS = 6000; // max backoff before retrying thin content
 // DeepSeek API retry: on a 429 (rate limit) or transient 5xx, retry the call a
 // few times with exponential backoff before recording the profile as failed.
+// Dashboard: coalesce bursts of storage writes into one reload+render. Long
+// enough to merge a burst (and a local write's duplicate render), short enough to
+// feel instant.
+export const STORAGE_RELOAD_DEBOUNCE_MS = 120;
 export const AI_RETRY_COUNT = 3;
 export const AI_RETRY_DELAY_MIN_MS = 1000;
 export const AI_RETRY_DELAY_MAX_MS = 2500;

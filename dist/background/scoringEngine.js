@@ -4,6 +4,8 @@ import { fetchProfileData } from './profileFetcher.js';
 import { computeScore } from './scoring.js';
 import { compileBooleanRule } from '../shared/booleanExpression.js';
 import { profileCache } from './cache.js';
+import { getStorage } from '../shared/storage.js';
+import { mergeIntoStored } from '../shared/resultMerge.js';
 const SESSION_KEY = 'scoringCheckpoint';
 let scoringState = {
     isRunning: false,
@@ -35,9 +37,23 @@ async function checkpoint() {
  * survive the popup closing (Chrome closes the popup the instant you switch
  * tabs) and are readable by the dashboard. Previously only the popup wrote this
  * on SCORING_COMPLETE — if the popup was shut, scores were lost.
+ *
+ * `scoringState.scores` is seeded from storage at the start of the run (see
+ * seedScoresFromStorage), so writing it back preserves candidates outside this
+ * run — a subset run must never wipe everyone else's scores.
  */
 async function persistScoresLocal() {
     await chrome.storage.local.set({ profileScores: scoringState.scores });
+}
+/**
+ * Seed the run's score map with everything already saved, so a run covering only
+ * a SUBSET of candidates (dashboard "Retry failed" / "Score selected" / a folder
+ * view) merges into the stored map instead of replacing it. Mirrors
+ * runAiEvalLoop, which seeds from stored aiEvals for the same reason.
+ */
+async function seedScoresFromStorage() {
+    const stored = await getStorage(['profileScores']);
+    scoringState.scores = mergeIntoStored(stored.profileScores, scoringState.scores);
 }
 export async function restoreCheckpoint() {
     if (!chrome.storage.session)
@@ -117,6 +133,9 @@ export function startScoring(data) {
     void runScoringLoop(booleanMatches);
 }
 async function runScoringLoop(booleanMatches) {
+    // Must happen before the first persist, or this run would overwrite the scores
+    // of every candidate it doesn't cover.
+    await seedScoresFromStorage();
     await checkpoint();
     const total = scoringState.profiles.length;
     let completed = 0;

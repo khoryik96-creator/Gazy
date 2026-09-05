@@ -53,7 +53,9 @@ export async function startSearch(req: SearchRequest): Promise<void> {
     if (!tab.id) throw new Error('Could not open a search tab.');
     tabId = tab.id;
   } else {
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    // lastFocusedWindow, not currentWindow: this runs in the service worker, which
+    // has no window of its own, so "current window" is not well-defined here.
+    const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
     const tab = tabs[0];
     if (!tab?.id) throw new Error('No active tab found.');
     tabId = tab.id;

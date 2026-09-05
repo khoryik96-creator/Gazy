@@ -1,6 +1,7 @@
 "use strict";
-// Bootstraps the content script: triggers auto-scroll+extraction on the LinkedIn
-// people-search results page, and answers on-demand extraction requests from the popup.
+// Bootstraps the content script: on a LinkedIn people-search results page it
+// auto-scrolls, scrapes the page, and reports it to the background, which owns
+// accumulation across pages and what to surface to the UI (see searchSession.ts).
 const { extractor, autoscroll } = window.__gazy;
 // Scrape this page and report it to the background, which accumulates results
 // across pages and decides what to surface to the popup (see searchSession.ts).
@@ -21,10 +22,7 @@ if (window.location.href.includes('linkedin.com/search/results/people') &&
     else
         window.addEventListener('load', start);
 }
-chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
-    if (request.type === 'EXTRACT_NOW') {
-        const urls = extractor ? extractor.collectProfiles() : [];
-        sendResponse({ status: 'extracting', count: urls.length });
-    }
-    return true;
-});
+// (An EXTRACT_NOW on-demand handler used to live here. It became inert when the
+// content script stopped emitting results itself — it scraped but reported
+// nothing — and no caller remained, so it was removed rather than left as a
+// silent no-op. Page scraping now flows only through reportPage above.)

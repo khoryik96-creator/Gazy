@@ -4,6 +4,7 @@ import {
   serializeWorkspace,
   parseWorkspace,
   isWorkspaceKey,
+  keysToClearOnRestore,
   WORKSPACE_KEYS,
 } from '../dist/shared/workspaceBackup.js';
 
@@ -55,6 +56,26 @@ test('parse tolerates a hand-edited file with extra keys, keeping only known one
   });
   const { data } = parseWorkspace(raw);
   assert.deepEqual(Object.keys(data), ['profiles']);
+});
+
+test('restore clears workspace keys the backup does not carry (true replace)', () => {
+  // Restoring a backup taken before you had folders must leave you with NO
+  // folders — not your current ones surviving alongside the restored data.
+  const partial = { profiles: ['x'], uiTheme: 'beacon' };
+  const toClear = keysToClearOnRestore(partial);
+  assert.ok(toClear.includes('folders'), 'folders absent from backup → must be cleared');
+  assert.ok(toClear.includes('shortlist'));
+  assert.ok(toClear.includes('profileScores'));
+  // Keys the backup DOES carry are written, not cleared.
+  assert.equal(toClear.includes('profiles'), false);
+  assert.equal(toClear.includes('uiTheme'), false);
+  // The API key is not a workspace key, so a restore never touches it.
+  assert.equal(toClear.includes('aiKey'), false);
+});
+
+test('a full backup clears nothing', () => {
+  const full = Object.fromEntries(WORKSPACE_KEYS.map((k) => [k, null]));
+  assert.deepEqual(keysToClearOnRestore(full), []);
 });
 
 test('isWorkspaceKey covers the documented set and excludes aiKey', () => {

@@ -90,3 +90,18 @@ export function parseWorkspace(text) {
 export function isWorkspaceKey(key) {
     return KEY_SET.has(key);
 }
+/**
+ * The workspace keys a restore must CLEAR: those the backup doesn't carry.
+ *
+ * A restore replaces the workspace (that's what the confirm dialog promises), so
+ * simply writing the file's keys isn't enough — any key absent from the backup
+ * would keep its current value and survive alongside the restored data. Restoring
+ * a backup taken before you had folders, for example, must leave you with no
+ * folders rather than your current ones.
+ *
+ * Never includes `aiKey`: it isn't a workspace key, so a restore leaves the
+ * user's API key alone.
+ */
+export function keysToClearOnRestore(data) {
+    return WORKSPACE_KEYS.filter((key) => !(key in data));
+}

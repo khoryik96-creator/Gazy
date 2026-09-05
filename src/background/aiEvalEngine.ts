@@ -1,8 +1,9 @@
 import { MESSAGE } from '../shared/constants.js';
 import { fetchProfileData } from './profileFetcher.js';
 import { evaluateProfile } from './deepseek.js';
-import { normalizeAiUsage, addUsage, type AiUsage } from '../shared/aiCost.js';
+import { normalizeAiUsage, addUsage } from '../shared/aiCost.js';
 import { getStorage } from '../shared/storage.js';
+import { mergeIntoStored } from '../shared/resultMerge.js';
 import type { AiEvalEntry, AiEvalMap, AiEvalRequest } from '../shared/types.js';
 
 let running = false;
@@ -37,11 +38,11 @@ export function stopAiEval(): void {
  * AI_EVAL_COMPLETE at the end; a per-profile failure is recorded, not fatal.
  */
 async function runAiEvalLoop(req: AiEvalRequest): Promise<void> {
-  // Start from any AI evals + cost usage already saved, so evaluating a subset
-  // (e.g. from the dashboard) merges rather than wipes the rest.
-  const stored = await getStorage(['aiEvals', 'aiUsage']);
-  const results: AiEvalMap = { ...(stored.aiEvals || {}) };
-  let usage: AiUsage = normalizeAiUsage(stored.aiUsage);
+  // Start from any AI evals already saved, so evaluating a subset (e.g. from the
+  // dashboard) merges rather than wipes the rest. Cost usage is NOT seeded here —
+  // it's re-read per profile below so a mid-run reset isn't clobbered.
+  const stored = await getStorage(['aiEvals']);
+  const results: AiEvalMap = mergeIntoStored<AiEvalMap[string]>(stored.aiEvals, {});
   const total = req.profiles.length;
   let index = 0;
 
@@ -50,6 +51,9 @@ async function runAiEvalLoop(req: AiEvalRequest): Promise<void> {
       if (stopRequested) break; // user hit Stop — leave what's done, bail out
       index++;
       let entry: AiEvalEntry;
+      // Token cost of THIS call, applied to stored usage below; null when the
+      // call failed (a failure costs nothing).
+      let spent: { input: number; output: number; cached: number } | null = null;
       try {
         const data = await fetchProfileData(url);
         const result = await evaluateProfile({
@@ -59,17 +63,30 @@ async function runAiEvalLoop(req: AiEvalRequest): Promise<void> {
           profileText: data.fullText,
         });
         entry = result.entry;
-        usage = addUsage(
-          usage,
-          req.model,
-          result.inputTokens,
-          result.outputTokens,
-          result.cachedTokens,
-        );
+        spent = {
+          input: result.inputTokens,
+          output: result.outputTokens,
+          cached: result.cachedTokens,
+        };
       } catch (e) {
         entry = { score: 0, reason: '', matched: [], missing: [], error: (e as Error).message };
       }
       results[url] = entry;
+
+      // Re-read usage and add only this call's tokens, rather than writing a
+      // running total seeded at the start of the run: on a long run the user may
+      // hit "Reset counters" in the Cost tab, and a stale total would silently
+      // undo that reset on the next profile.
+      const current = await getStorage(['aiUsage']);
+      const usage = spent
+        ? addUsage(
+            normalizeAiUsage(current.aiUsage),
+            req.model,
+            spent.input,
+            spent.output,
+            spent.cached,
+          )
+        : normalizeAiUsage(current.aiUsage);
 
       // Persist from the background so results + cost survive the popup closing
       // and are picked up live by the dashboard.

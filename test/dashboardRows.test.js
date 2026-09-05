@@ -30,7 +30,7 @@ test('buildRow: keyword + AI labels and folder membership', () => {
     shortlist: new Set([U.a]),
     folders: folders(['F'], { F: [U.a] }),
   });
-  assert.equal(row.name, 'alice');
+  assert.equal(row.name, 'Alice'); // shared nameFormat, same as popup/CSV
   assert.equal(row.kw, 80);
   assert.equal(row.kwLabel, '80%');
   assert.equal(row.ai, 90);
@@ -62,9 +62,9 @@ test('sortRows: numeric desc, with unscored (null) always last', () => {
     folders: folders([], {}),
   });
   const desc = sortRows(rows, 'kw', -1).map((r) => r.name);
-  assert.deepEqual(desc, ['bob', 'alice', 'carol']); // 80, 40, null-last
+  assert.deepEqual(desc, ['Bob', 'Alice', 'Carol']); // 80, 40, null-last
   const asc = sortRows(rows, 'kw', 1).map((r) => r.name);
-  assert.deepEqual(asc, ['alice', 'bob', 'carol']); // 40, 80, null STILL last
+  assert.deepEqual(asc, ['Alice', 'Bob', 'Carol']); // 40, 80, null STILL last
 });
 
 test('inView: All is results-only; folder view is that folder only', () => {
