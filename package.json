@@ -19,15 +19,15 @@
     "prepare": "husky || true"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.0",
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.1",
     "@types/chrome": "^0.2.6",
-    "eslint": "^9.39.5",
+    "eslint": "^10.9.1",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.11.0",
     "husky": "^9.1.7",
     "prettier": "^3.9.6",
     "typescript": "~6.0.3",
-    "typescript-eslint": "^8.67.0"
+    "typescript-eslint": "^8.68.0"
   }
 }
